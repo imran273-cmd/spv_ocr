@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Executive Summary and Data Table</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .tabs { display: flex; cursor: pointer; margin-bottom: 20px; }
+        .tab { margin-right: 20px; padding: 10px; background: #ddd; border-radius: 5px; }
+        .tab.active { background: #aaa; }
+        .content { display: none; }
+        .content.active { display: block; }
+        canvas { max-width: 100%; }
+    </style>
+</head>
+<body>
+   <div class="tabs">
+    <div class="tab" onclick="location.href='/';">Executive Summary</div>
+    <div class="tab" onclick="location.href='/';">Data Table</div>
+    <div class="tab" onclick="location.href='/images';">Images</div>
+</div>
+
+</div>
+
+    <div id="summary" class="content active">
+        <h2>Executive Summary</h2>
+        <h3>Distribution of Nama Petugas</h3>
+        <img src="data:image/png;base64,{{ pie_chart_url }}" alt="Pie Chart">
+        <h3>Distribution by Provinsi</h3>
+        <img src="data:image/png;base64,{{ bar_provinsi_chart_url }}" alt="Bar Chart">
+        <h3>Distribution by Kabupaten/Kota</h3>
+        <img src="data:image/png;base64,{{ bar_kabupaten_chart_url }}" alt="Bar Chart">
+    </div>
+
+    <div id="table" class="content">
+        <h2>Data Table</h2>
+<form method="get" action="/">
+    <input type="text" name="search" placeholder="Search by Nama Petugas" value="{{ search_query }}">
+    <button type="submit">Search</button>
+</form>
+<table border="1" cellpadding="10" cellspacing="0">
+    <thead>
+        <tr>
+            <th>Nama Petugas</th>
+            <th>Provinsi</th>
+            <th>Kabupaten/Kota</th>
+            <th>NIK</th>
+            <th>Nama</th>
+            <th>DOB</th>
+            <th>Nomor Input</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in data %}
+        <tr>
+            <td>{{ row[0] }}</td>
+            <td>{{ row[1] }}</td>
+            <td>{{ row[2] }}</td>
+            <td>{{ row[3] }}</td>
+            <td>{{ row[4] }}</td>
+            <td>{{ row[5] }}</td>
+            <td>{{ row[6] }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+    </div>
+
+    <script>
+        const tabs = document.querySelectorAll('.tab');
+        const contents = document.querySelectorAll('.content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                contents.forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.target).classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>
