@@ -23,12 +23,12 @@
 </head>
 <body>
     <div class="tabs">
-        <div class="tab active" data-target="summary">Executive Summary</div>
-        <div class="tab" data-target="table">Data Table</div>
+        <div class="tab" data-target="summary">Executive Summary</div>
+        <div class="tab active" data-target="table">Data Table</div>
         <div class="tab" data-target="qc-process">QC Process</div>
     </div>
 
-    <div id="summary" class="content active">
+    <div id="summary" class="content">
         <h3>Distribution of Nama Petugas</h3>
         <img src="data:image/png;base64,{{ pie_chart_url }}" alt="Nama Petugas Pie Chart">
         <h3>Distribution by Provinsi</h3>
@@ -37,9 +37,9 @@
         <img src="data:image/png;base64,{{ bar_kabupaten_chart_url }}" alt="Kabupaten/Kota Bar Chart">
     </div>
 
-    <div id="table" class="content">
+    <div id="table" class="content active">
         <h2>Data Table</h2>
-        <form method="get" action="/">
+        <form method="get" action="#table">
             <input type="text" name="search" placeholder="Search by Nama Petugas" value="{{ search_query }}">
             <button type="submit">Search</button>
         </form>
@@ -181,6 +181,12 @@
                 document.getElementById(tab.dataset.target).classList.add('active');
             });
         });
+
+        // Automatically set the active tab based on the hash in the URL
+        const hash = window.location.hash.substring(1);
+        if (hash) {
+            document.querySelector(`.tab[data-target="${hash}"]`)?.click();
+        }
     </script>
 </body>
 </html>
