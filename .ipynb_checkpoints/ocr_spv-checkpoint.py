@@ -28,8 +28,15 @@ def connect_to_db():
         print(f"Error connecting to database: {e}")
         return None
 
+def add_values_on_bars(ax):
+    """Adds value annotations on top of bars in a bar chart."""
+    for bar in ax.patches:
+        ax.annotate(format(bar.get_height(), '.0f'), 
+                    (bar.get_x() + bar.get_width() / 2, bar.get_height()),
+                    ha='center', va='bottom')
+
 def generate_charts():
-    """Generates pie chart and bar charts for nama_petugas and kabupaten_kota distribution."""
+    """Generates pie chart and bar charts for nama_petugas, provinsi, and kabupaten_kota distribution."""
     conn = connect_to_db()
     if conn:
         try:
@@ -51,38 +58,40 @@ def generate_charts():
                 kabupaten_kota_count[kabupaten_kota] = kabupaten_kota_count.get(kabupaten_kota, 0) + 1
 
             # Generate pie chart for nama_petugas
-            fig1, ax1 = plt.subplots()
-            ax1.pie(nama_petugas_count.values(), labels=nama_petugas_count.keys(), autopct='%1.1f%%')
-            ax1.set_title('Distribution of Nama Petugas')
+            fig0, ax0 = plt.subplots()
+            ax0.pie(nama_petugas_count.values(), labels=nama_petugas_count.keys(), autopct='%1.1f%%')
+            ax0.set_title('Distribution of Nama Petugas')
             pie_img = BytesIO()
             plt.savefig(pie_img, format='png')
             pie_img.seek(0)
             pie_chart_url = base64.b64encode(pie_img.getvalue()).decode()
-            plt.close(fig1)
+            plt.close(fig0)
 
             # Generate bar chart for provinsi
-            fig2, ax2 = plt.subplots(figsize=(12, 6))  # Wider chart
-            ax2.bar(provinsi_count.keys(), provinsi_count.values())
-            ax2.set_title('Distribution by Provinsi')
-            ax2.set_xlabel('Provinsi')
-            ax2.set_ylabel('Count')
+            fig1, ax1 = plt.subplots(figsize=(15, 6))
+            ax1.bar(provinsi_count.keys(), provinsi_count.values())
+            ax1.set_title('Distribution by Provinsi')
+            ax1.set_xlabel('Provinsi')
+            ax1.set_ylabel('Count')
+            add_values_on_bars(ax1)
             bar_provinsi_img = BytesIO()
             plt.savefig(bar_provinsi_img, format='png')
             bar_provinsi_img.seek(0)
             bar_provinsi_chart_url = base64.b64encode(bar_provinsi_img.getvalue()).decode()
-            plt.close(fig2)
+            plt.close(fig1)
 
             # Generate bar chart for kabupaten_kota
-            fig3, ax3 = plt.subplots(figsize=(12, 6))  # Wider chart
-            ax3.bar(kabupaten_kota_count.keys(), kabupaten_kota_count.values())
-            ax3.set_title('Distribution by Kabupaten/Kota')
-            ax3.set_xlabel('Kabupaten/Kota')
-            ax3.set_ylabel('Count')
+            fig2, ax2 = plt.subplots(figsize=(15, 6))
+            ax2.bar(kabupaten_kota_count.keys(), kabupaten_kota_count.values())
+            ax2.set_title('Distribution by Kabupaten/Kota')
+            ax2.set_xlabel('Kabupaten/Kota')
+            ax2.set_ylabel('Count')
+            add_values_on_bars(ax2)
             bar_kabupaten_img = BytesIO()
             plt.savefig(bar_kabupaten_img, format='png')
             bar_kabupaten_img.seek(0)
             bar_kabupaten_chart_url = base64.b64encode(bar_kabupaten_img.getvalue()).decode()
-            plt.close(fig3)
+            plt.close(fig2)
 
             return pie_chart_url, bar_provinsi_chart_url, bar_kabupaten_chart_url
         except Exception as e:
@@ -93,68 +102,92 @@ def generate_charts():
     else:
         return None, None, None
 
-def fetch_images_and_data(nama_petugas):
-    """Fetches images and data from ktp_data and npwp_data based on nama_petugas."""
+@app.route('/qc-process')
+def qc_process():
+    """Displays QC Process images and data based on search by nama_petugas."""
     conn = connect_to_db()
     if conn:
         try:
+            search_query = request.args.get('search', '').strip()
+
+            # If no search query is provided, render the page with an empty state
+            if not search_query:
+                return render_template('qc_process.html', search_query='', 
+                                       ktp_image_url=None, npwp_image_url=None, 
+                                       ktp_data=None, npwp_data=None)
+
             cursor = conn.cursor()
 
-            # Query for ktp_data image and table data
-            cursor.execute("SELECT scanned_image, nama_petugas, row_4 AS NIK, row_6 AS Nama FROM ktp_data WHERE nama_petugas ILIKE %s", (f"%{nama_petugas}%",))
+            # Fetch KTP image and data
+            cursor.execute(
+                """SELECT scanned_image, nama_petugas, nomor_input, row_1, row_2, row_4, row_6, row_8 
+                   FROM ktp_data WHERE nama_petugas ILIKE %s LIMIT 1""",
+                (f"%{search_query}%",)
+            )
             ktp_result = cursor.fetchone()
+            ktp_image_url = base64.b64encode(ktp_result[0]).decode() if ktp_result and ktp_result[0] else None
 
-            # Query for npwp_data image and table data
-            cursor.execute("SELECT scanned_image, nama_petugas, row_1 AS Kantor_Dirjen, row_2 AS Nama_Wajib_Pajak, row_4 AS Nomor_Wajib_Pajak FROM npwp_data WHERE nama_petugas ILIKE %s", (f"%{nama_petugas}%",))
+            # Fetch NPWP image and data
+            cursor.execute(
+                """SELECT scanned_image, nama_petugas, nomor_input, row_2, row_4, row_5 
+                   FROM npwp_data WHERE nama_petugas ILIKE %s LIMIT 1""",
+                (f"%{search_query}%",)
+            )
             npwp_result = cursor.fetchone()
+            npwp_image_url = base64.b64encode(npwp_result[0]).decode() if npwp_result and npwp_result[0] else None
 
-            ktp_image_url = None
-            npwp_image_url = None
-
-            if ktp_result and ktp_result[0]:
-                ktp_image = Image.open(io.BytesIO(ktp_result[0]))
-                ktp_img_byte_arr = io.BytesIO()
-                ktp_image.save(ktp_img_byte_arr, format='JPEG')
-                ktp_img_byte_arr = ktp_img_byte_arr.getvalue()
-                ktp_image_url = base64.b64encode(ktp_img_byte_arr).decode()
-
-            if npwp_result and npwp_result[0]:
-                npwp_image = Image.open(io.BytesIO(npwp_result[0]))
-                npwp_img_byte_arr = io.BytesIO()
-                npwp_image.save(npwp_img_byte_arr, format='JPEG')
-                npwp_img_byte_arr = npwp_img_byte_arr.getvalue()
-                npwp_image_url = base64.b64encode(npwp_img_byte_arr).decode()
-
-            return {
-                "ktp_image_url": ktp_image_url,
-                "npwp_image_url": npwp_image_url,
-                "ktp_data": ktp_result,
-                "npwp_data": npwp_result
-            }
+            # Render the QC Process page with the data
+            return render_template('qc_process.html', search_query=search_query, 
+                                   ktp_image_url=ktp_image_url, npwp_image_url=npwp_image_url, 
+                                   ktp_data=ktp_result[1:] if ktp_result else None, 
+                                   npwp_data=npwp_result[1:] if npwp_result else None)
         except Exception as e:
-            print(f"Error fetching images and data: {e}")
-            return {
-                "ktp_image_url": None,
-                "npwp_image_url": None,
-                "ktp_data": None,
-                "npwp_data": None
-            }
+            print(f"Error fetching QC Process data: {e}")
+            return f"Error fetching QC Process data: {e}"
         finally:
             conn.close()
     else:
-        return {
-            "ktp_image_url": None,
-            "npwp_image_url": None,
-            "ktp_data": None,
-            "npwp_data": None
-        }
+        return "Database connection failed"
 
-@app.route('/images')
-def images():
-    """Displays images and data from ktp_data and npwp_data with search functionality."""
-    search_query = request.args.get('search', '')
-    results = fetch_images_and_data(search_query)
-    return render_template('images.html', search_query=search_query, **results)
+@app.route('/')
+def index():
+    """Fetches data from the database and displays it on the main page."""
+    conn = connect_to_db()
+    if conn:
+        try:
+            search_query = request.args.get('search', '')  # Get the search query from the URL parameters
+            cursor = conn.cursor()
+            if search_query:
+                cursor.execute(
+                    """SELECT nama_petugas, row_1 AS Provinsi, row_2 AS Kabupaten_Kota, 
+                              row_4 AS NIK, row_6 AS Nama, row_8 AS DOB, nomor_input 
+                       FROM ktp_data WHERE nama_petugas ILIKE %s""",
+                    (f"%{search_query}%",)
+                )
+            else:
+                cursor.execute(
+                    """SELECT nama_petugas, row_1 AS Provinsi, row_2 AS Kabupaten_Kota, 
+                              row_4 AS NIK, row_6 AS Nama, row_8 AS DOB, nomor_input 
+                       FROM ktp_data"""
+                )
+            data = cursor.fetchall()
+
+            pie_chart_url, bar_provinsi_chart_url, bar_kabupaten_chart_url = generate_charts()
+
+            return render_template('index.html', data=data, search_query=search_query, 
+                                   pie_chart_url=pie_chart_url,
+                                   bar_provinsi_chart_url=bar_provinsi_chart_url, 
+                                   bar_kabupaten_chart_url=bar_kabupaten_chart_url)
+        except psycopg2.Error as e:
+            print(f"PostgreSQL Error: {e}")
+            return f"PostgreSQL Error: {e}"
+        except Exception as e:
+            print(f"Error fetching data: {e}")
+            return f"Error fetching data: {e}"
+        finally:
+            conn.close()
+    else:
+        return "Database connection failed"
 
 @app.route('/image/<int:id>')
 def get_image(id):
