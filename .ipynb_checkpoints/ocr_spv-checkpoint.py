@@ -104,7 +104,7 @@ def generate_charts():
 
 @app.route('/qc-process')
 def qc_process():
-    """Displays QC Process images and data based on search by nama_petugas."""
+    """Displays QC Process images and data based on search by nomor_input."""
     conn = connect_to_db()
     if conn:
         try:
@@ -118,20 +118,20 @@ def qc_process():
 
             cursor = conn.cursor()
 
-            # Fetch KTP image and data
+            # Fetch KTP image and data by nomor_input
             cursor.execute(
                 """SELECT scanned_image, nama_petugas, nomor_input, row_1, row_2, row_4, row_6, row_8 
-                   FROM ktp_data WHERE nama_petugas ILIKE %s LIMIT 1""",
-                (f"%{search_query}%",)
+                   FROM ktp_data WHERE nomor_input = %s LIMIT 1""",
+                (search_query,)
             )
             ktp_result = cursor.fetchone()
             ktp_image_url = base64.b64encode(ktp_result[0]).decode() if ktp_result and ktp_result[0] else None
 
-            # Fetch NPWP image and data
+            # Fetch NPWP image and data by nomor_input
             cursor.execute(
                 """SELECT scanned_image, nama_petugas, nomor_input, row_2, row_4, row_5 
-                   FROM npwp_data WHERE nama_petugas ILIKE %s LIMIT 1""",
-                (f"%{search_query}%",)
+                   FROM npwp_data WHERE nomor_input = %s LIMIT 1""",
+                (search_query,)
             )
             npwp_result = cursor.fetchone()
             npwp_image_url = base64.b64encode(npwp_result[0]).decode() if npwp_result and npwp_result[0] else None
@@ -148,6 +148,7 @@ def qc_process():
             conn.close()
     else:
         return "Database connection failed"
+
 
 @app.route('/')
 def index():
