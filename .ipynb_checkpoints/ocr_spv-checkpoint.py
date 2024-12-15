@@ -152,12 +152,26 @@ def qc_process():
 
 @app.route('/')
 def index():
-    """Fetches data from the database and displays it on the main page."""
+    """Displays the Executive Summary, Data Table, and QC Process tabs with insights."""
     conn = connect_to_db()
     if conn:
         try:
-            search_query = request.args.get('search', '')  # Get the search query from the URL parameters
             cursor = conn.cursor()
+
+            # Fetch total register
+            cursor.execute("SELECT COUNT(*) FROM ktp_data")
+            total_register = cursor.fetchone()[0]
+
+            # Fetch total unique provinces
+            cursor.execute("SELECT COUNT(DISTINCT row_1) FROM ktp_data")
+            total_unique_provinces = cursor.fetchone()[0]
+
+            # Fetch total unique kabupaten/kota
+            cursor.execute("SELECT COUNT(DISTINCT row_2) FROM ktp_data")
+            total_unique_kabupaten = cursor.fetchone()[0]
+
+            # Handle search query for the Data Table tab
+            search_query = request.args.get('search', '').strip()
             if search_query:
                 cursor.execute(
                     """SELECT nama_petugas, row_1 AS Provinsi, row_2 AS Kabupaten_Kota, 
@@ -173,12 +187,21 @@ def index():
                 )
             data = cursor.fetchall()
 
+            # Generate charts
             pie_chart_url, bar_provinsi_chart_url, bar_kabupaten_chart_url = generate_charts()
 
-            return render_template('index.html', data=data, search_query=search_query, 
-                                   pie_chart_url=pie_chart_url,
-                                   bar_provinsi_chart_url=bar_provinsi_chart_url, 
-                                   bar_kabupaten_chart_url=bar_kabupaten_chart_url)
+            # Render the index template
+            return render_template(
+                'index.html',
+                total_register=total_register,
+                total_unique_provinces=total_unique_provinces,
+                total_unique_kabupaten=total_unique_kabupaten,
+                pie_chart_url=pie_chart_url,
+                bar_provinsi_chart_url=bar_provinsi_chart_url,
+                bar_kabupaten_chart_url=bar_kabupaten_chart_url,
+                search_query=search_query,
+                data=data,
+            )
         except psycopg2.Error as e:
             print(f"PostgreSQL Error: {e}")
             return f"PostgreSQL Error: {e}"
@@ -189,6 +212,7 @@ def index():
             conn.close()
     else:
         return "Database connection failed"
+
 
 @app.route('/image/<int:id>')
 def get_image(id):
