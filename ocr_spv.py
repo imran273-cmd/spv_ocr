@@ -129,7 +129,7 @@ def qc_process():
 
             # Fetch NPWP image and data by nomor_input
             cursor.execute(
-                """SELECT scanned_image, nama_petugas, nomor_input, row_2, row_4, row_5 
+                """SELECT scanned_image, nama_petugas, nomor_input, row_2, row_4,row_7, row_5 
                    FROM npwp_data WHERE nomor_input = %s LIMIT 1""",
                 (search_query,)
             )
