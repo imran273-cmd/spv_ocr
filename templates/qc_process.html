@@ -101,18 +101,18 @@
                 </tr>
             </thead>
             <tbody>
-                {% if npwp_data %}
+                {% if npwp_data2 %}
                     <tr>
-                        <td>{{ npwp_data[0] }}</td>
-                        <td>{{ npwp_data[1] }}</td>
-                        <td>{{ npwp_data[2] }}</td>
-                        <td>{{ npwp_data[3] }}</td>
-                        <td>{{ npwp_data[4] }}</td>
-                        <td>{{ npwp_data[5] }}</td>
+                        <td>{{ npwp_data2[0] }}</td>
+                        <td>{{ npwp_data2[1] }}</td>
+                        <td>{{ npwp_data2[2] }}</td>
+                        <td>{{ npwp_data2[3] }}</td>
+                        <td>{{ npwp_data2[4] }}</td>
+                        <td>{{ npwp_data2[5] }}</td>
                     </tr>
                 {% else %}
                     <tr>
-                        <td colspan="5" style="text-align: center;">No NPWP data available</td>
+                        <td colspan="6" style="text-align: center;">No NPWP data available</td>
                     </tr>
                 {% endif %}
             </tbody>
@@ -121,7 +121,7 @@
         <p class="message">No data or images found for "{{ search_query }}".</p>
         {% endif %}
     {% else %}
-    <p class="message">Please enter a Nama Petugas to search for QC Process data.</p>
+    <p class="message">Please enter a Nomor Input to search for QC Process data.</p>
     {% endif %}
 </body>
 </html>

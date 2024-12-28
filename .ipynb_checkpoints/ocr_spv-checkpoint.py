@@ -41,7 +41,7 @@ def generate_charts():
     if conn:
         try:
             cursor = conn.cursor()
-            cursor.execute("SELECT nama_petugas, row_1 AS provinsi, row_2 AS kabupaten_kota FROM ktp_data")
+            cursor.execute("SELECT nama_petugas, row_1 AS provinsi, row_2 AS kabupaten_kota FROM ktp_data2")
             data = cursor.fetchall()
 
             # Data processing for charts
@@ -112,16 +112,21 @@ def qc_process():
 
             # If no search query is provided, render the page with an empty state
             if not search_query:
-                return render_template('qc_process.html', search_query='', 
-                                       ktp_image_url=None, npwp_image_url=None, 
-                                       ktp_data=None, npwp_data=None)
+                return render_template(
+                    'qc_process.html',
+                    search_query='',
+                    ktp_image_url=None,
+                    npwp_image_url=None,
+                    ktp_data=None,
+                    npwp_data2=None
+                )
 
             cursor = conn.cursor()
 
             # Fetch KTP image and data by nomor_input
             cursor.execute(
                 """SELECT scanned_image, nama_petugas, nomor_input, row_1, row_2, row_4, row_6, row_8 
-                   FROM ktp_data WHERE nomor_input = %s LIMIT 1""",
+                   FROM ktp_data2 WHERE nomor_input = %s LIMIT 1""",
                 (search_query,)
             )
             ktp_result = cursor.fetchone()
@@ -129,18 +134,27 @@ def qc_process():
 
             # Fetch NPWP image and data by nomor_input
             cursor.execute(
-                """SELECT scanned_image, nama_petugas, nomor_input, row_2, row_4,row_7, row_5 
-                   FROM npwp_data WHERE nomor_input = %s LIMIT 1""",
+                """SELECT scanned_image, nama_petugas, nomor_input, row_2, row_4, row_5, row_7 
+                   FROM npwp_data2 WHERE nomor_input = %s LIMIT 1""",
                 (search_query,)
             )
             npwp_result = cursor.fetchone()
             npwp_image_url = base64.b64encode(npwp_result[0]).decode() if npwp_result and npwp_result[0] else None
 
+            # Debug logs to ensure data is fetched correctly
+            print(f"Search Query: {search_query}")
+            print(f"KTP Result: {ktp_result}")
+            print(f"NPWP Result: {npwp_result}")
+
             # Render the QC Process page with the data
-            return render_template('qc_process.html', search_query=search_query, 
-                                   ktp_image_url=ktp_image_url, npwp_image_url=npwp_image_url, 
-                                   ktp_data=ktp_result[1:] if ktp_result else None, 
-                                   npwp_data=npwp_result[1:] if npwp_result else None)
+            return render_template(
+                'qc_process.html',
+                search_query=search_query,
+                ktp_image_url=ktp_image_url,
+                npwp_image_url=npwp_image_url,
+                ktp_data=ktp_result[1:] if ktp_result else None,
+                npwp_data2=npwp_result[1:] if npwp_result else None
+            )
         except Exception as e:
             print(f"Error fetching QC Process data: {e}")
             return f"Error fetching QC Process data: {e}"
@@ -159,15 +173,15 @@ def index():
             cursor = conn.cursor()
 
             # Fetch total register
-            cursor.execute("SELECT COUNT(*) FROM ktp_data")
+            cursor.execute("SELECT COUNT(*) FROM ktp_data2")
             total_register = cursor.fetchone()[0]
 
             # Fetch total unique provinces
-            cursor.execute("SELECT COUNT(DISTINCT row_1) FROM ktp_data")
+            cursor.execute("SELECT COUNT(DISTINCT row_1) FROM ktp_data2")
             total_unique_provinces = cursor.fetchone()[0]
 
             # Fetch total unique kabupaten/kota
-            cursor.execute("SELECT COUNT(DISTINCT row_2) FROM ktp_data")
+            cursor.execute("SELECT COUNT(DISTINCT row_2) FROM ktp_data2")
             total_unique_kabupaten = cursor.fetchone()[0]
 
             # Handle search query for the Data Table tab
@@ -176,14 +190,14 @@ def index():
                 cursor.execute(
                     """SELECT nama_petugas, row_1 AS Provinsi, row_2 AS Kabupaten_Kota, 
                               row_4 AS NIK, row_6 AS Nama, row_8 AS DOB, nomor_input 
-                       FROM ktp_data WHERE nama_petugas ILIKE %s""",
+                       FROM ktp_data2 WHERE nama_petugas ILIKE %s""",
                     (f"%{search_query}%",)
                 )
             else:
                 cursor.execute(
                     """SELECT nama_petugas, row_1 AS Provinsi, row_2 AS Kabupaten_Kota, 
                               row_4 AS NIK, row_6 AS Nama, row_8 AS DOB, nomor_input 
-                       FROM ktp_data"""
+                       FROM ktp_data2"""
                 )
             data = cursor.fetchall()
 
@@ -221,7 +235,7 @@ def get_image(id):
     if conn:
         try:
             cursor = conn.cursor()
-            cursor.execute("SELECT scanned_image FROM ktp_data WHERE id = %s", (id,))
+            cursor.execute("SELECT scanned_image FROM ktp_data2 WHERE id = %s", (id,))
             image_data = cursor.fetchone()
             if image_data and image_data[0]:
                 image = Image.open(io.BytesIO(image_data[0]))
