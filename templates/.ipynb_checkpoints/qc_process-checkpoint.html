@@ -9,6 +9,8 @@
         .search-form { margin-bottom: 20px; }
         .image-container { display: flex; justify-content: space-between; margin-bottom: 20px; }
         .image-container img { width: 700px; height: 400px; border: 1px solid #ddd; border-radius: 5px; object-fit: cover; }
+        .image-container2 { display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; }
+        .image-container2 img { width: 1000px; height: 900px; border: 1px solid #ddd; border-radius: 5px; object-fit: cover; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f4f4f4; }
@@ -33,7 +35,7 @@
     </form>
 
     {% if search_query %}
-        {% if ktp_image_url or npwp_image_url %}
+        {% if ktp_image_url or npwp_image_url or form_image_url %}
         <!-- Images -->
         <div class="image-container">
             <div>
@@ -52,6 +54,16 @@
                     <p>No NPWP image available</p>
                 {% endif %}
             </div>
+        </div>
+
+        <!-- Form Image -->
+        <div class="image-container2">
+            <h3>Form Image</h3>
+            {% if form_image_url %}
+                <img src="data:image/jpeg;base64,{{ form_image_url }}" alt="Form Image">
+            {% else %}
+                <p>No Form image available</p>
+            {% endif %}
         </div>
 
         <!-- KTP Data Table -->
@@ -117,6 +129,40 @@
                 {% endif %}
             </tbody>
         </table>
+    <h3>Form Data</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Nama Petugas</th>
+            <th>Kartu Yang Dipilih</th>
+            <th>Pemberi Referensi</th>
+            <th>Kode Cabang</th>
+            <th>Nama Cabang Capem</th>
+            <th>Nama Lengkap Sesuai KTP/Paspor</th>
+            <th>Nama Yang Dicetak Pada Kartu</th>
+            <th>Nomor KTP</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% if form_data %}
+            <tr>
+                <td>{{ form_data[0] }}</td>
+                <td>{{ form_data[1] }}</td>
+                <td>{{ form_data[2] }}</td>
+                <td>{{ form_data[3] }}</td>
+                <td>{{ form_data[4] }}</td>
+                <td>{{ form_data[5] }}</td>
+                <td>{{ form_data[6] }}</td>
+                <td>{{ form_data[7] }}</td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="8" style="text-align: center;">No Form data available</td>
+            </tr>
+        {% endif %}
+    </tbody>
+</table>
+
         {% else %}
         <p class="message">No data or images found for "{{ search_query }}".</p>
         {% endif %}

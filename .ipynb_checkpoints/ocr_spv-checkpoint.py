@@ -117,8 +117,10 @@ def qc_process():
                     search_query='',
                     ktp_image_url=None,
                     npwp_image_url=None,
+                    form_image_url=None,
                     ktp_data=None,
-                    npwp_data2=None
+                    npwp_data2=None,
+                    form_data=None
                 )
 
             cursor = conn.cursor()
@@ -141,10 +143,22 @@ def qc_process():
             npwp_result = cursor.fetchone()
             npwp_image_url = base64.b64encode(npwp_result[0]).decode() if npwp_result and npwp_result[0] else None
 
+            # Fetch Form image and additional data from form_data2 by nomor_input
+            cursor.execute(
+                """SELECT scanned_image, nama_petugas, kartu_yang_dipilih, nama_pemberi_referensi, kode_cabang, 
+                          nama_cabang_capem, nama_lengkap_sesuai_ktp_paspor, nama_yang_dicetak_pada_kartu, nomor_ktp 
+                   FROM form_data2 WHERE nomor_input = %s LIMIT 1""",
+                (search_query,)
+            )
+            form_result = cursor.fetchone()
+            form_image_url = base64.b64encode(form_result[0]).decode() if form_result and form_result[0] else None
+            form_data = form_result[1:] if form_result else None
+
             # Debug logs to ensure data is fetched correctly
             print(f"Search Query: {search_query}")
             print(f"KTP Result: {ktp_result}")
             print(f"NPWP Result: {npwp_result}")
+            print(f"Form Result: {form_result}")
 
             # Render the QC Process page with the data
             return render_template(
@@ -152,8 +166,10 @@ def qc_process():
                 search_query=search_query,
                 ktp_image_url=ktp_image_url,
                 npwp_image_url=npwp_image_url,
+                form_image_url=form_image_url,
                 ktp_data=ktp_result[1:] if ktp_result else None,
-                npwp_data2=npwp_result[1:] if npwp_result else None
+                npwp_data2=npwp_result[1:] if npwp_result else None,
+                form_data=form_data
             )
         except Exception as e:
             print(f"Error fetching QC Process data: {e}")
