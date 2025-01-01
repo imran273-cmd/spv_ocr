@@ -64,7 +64,7 @@ def generate_charts():
             pie_img = BytesIO()
             plt.savefig(pie_img, format='png')
             pie_img.seek(0)
-            pie_chart_url = base64.b64encode(pie_img.getvalue()).decode()
+            pie_chart_url = base64.b64encode(pie_img.getvalue()).decode('utf-8')
             plt.close(fig0)
 
             # Generate bar chart for provinsi
@@ -77,7 +77,7 @@ def generate_charts():
             bar_provinsi_img = BytesIO()
             plt.savefig(bar_provinsi_img, format='png')
             bar_provinsi_img.seek(0)
-            bar_provinsi_chart_url = base64.b64encode(bar_provinsi_img.getvalue()).decode()
+            bar_provinsi_chart_url = base64.b64encode(bar_provinsi_img.getvalue()).decode('utf-8')
             plt.close(fig1)
 
             # Generate bar chart for kabupaten_kota
@@ -90,7 +90,7 @@ def generate_charts():
             bar_kabupaten_img = BytesIO()
             plt.savefig(bar_kabupaten_img, format='png')
             bar_kabupaten_img.seek(0)
-            bar_kabupaten_chart_url = base64.b64encode(bar_kabupaten_img.getvalue()).decode()
+            bar_kabupaten_chart_url = base64.b64encode(bar_kabupaten_img.getvalue()).decode('utf-8')
             plt.close(fig2)
 
             return pie_chart_url, bar_provinsi_chart_url, bar_kabupaten_chart_url
@@ -118,8 +118,8 @@ def qc_process():
                     ktp_image_url=None,
                     npwp_image_url=None,
                     form_image_url=None,
-                    ktp_data=None,
-                    npwp_data2=None,
+                    ktp_data2=None,
+                    npwp_data=None,
                     form_data=None
                 )
 
@@ -132,16 +132,16 @@ def qc_process():
                 (search_query,)
             )
             ktp_result = cursor.fetchone()
-            ktp_image_url = base64.b64encode(ktp_result[0]).decode() if ktp_result and ktp_result[0] else None
+            ktp_image_url = base64.b64encode(ktp_result[0]).decode('utf-8') if ktp_result and ktp_result[0] else None
 
             # Fetch NPWP image and data by nomor_input
             cursor.execute(
                 """SELECT scanned_image, nama_petugas, nomor_input, row_2, row_4, row_5, row_7 
-                   FROM npwp_data2 WHERE nomor_input = %s LIMIT 1""",
+                   FROM npwp_data WHERE nomor_input = %s LIMIT 1""",
                 (search_query,)
             )
             npwp_result = cursor.fetchone()
-            npwp_image_url = base64.b64encode(npwp_result[0]).decode() if npwp_result and npwp_result[0] else None
+            npwp_image_url = base64.b64encode(npwp_result[0]).decode('utf-8') if npwp_result and npwp_result[0] else None
 
             # Fetch Form image and additional data from form_data2 by nomor_input
             cursor.execute(
@@ -151,7 +151,7 @@ def qc_process():
                 (search_query,)
             )
             form_result = cursor.fetchone()
-            form_image_url = base64.b64encode(form_result[0]).decode() if form_result and form_result[0] else None
+            form_image_url = base64.b64encode(form_result[0]).decode('utf-8') if form_result and form_result[0] else None
             form_data = form_result[1:] if form_result else None
 
             # Debug logs to ensure data is fetched correctly
@@ -167,8 +167,8 @@ def qc_process():
                 ktp_image_url=ktp_image_url,
                 npwp_image_url=npwp_image_url,
                 form_image_url=form_image_url,
-                ktp_data=ktp_result[1:] if ktp_result else None,
-                npwp_data2=npwp_result[1:] if npwp_result else None,
+                ktp_data2=ktp_result[1:] if ktp_result else None,
+                npwp_data=npwp_result[1:] if npwp_result else None,
                 form_data=form_data
             )
         except Exception as e:
@@ -178,7 +178,6 @@ def qc_process():
             conn.close()
     else:
         return "Database connection failed"
-
 
 @app.route('/')
 def index():
@@ -243,7 +242,6 @@ def index():
     else:
         return "Database connection failed"
 
-
 @app.route('/image/<int:id>')
 def get_image(id):
     """Fetches an image from the database by its ID and returns it as a response."""
@@ -251,7 +249,7 @@ def get_image(id):
     if conn:
         try:
             cursor = conn.cursor()
-            cursor.execute("SELECT scanned_image FROM ktp_data2 WHERE id = %s", (id,))
+            cursor.execute("SELECT scanned_image FROM ktp_data WHERE id = %s", (id,))
             image_data = cursor.fetchone()
             if image_data and image_data[0]:
                 image = Image.open(io.BytesIO(image_data[0]))
