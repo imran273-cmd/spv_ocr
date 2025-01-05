@@ -7,14 +7,65 @@
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         .search-form { margin-bottom: 20px; }
-        .content-container { display: flex; gap: 20px; margin-bottom: 40px; align-items: flex-start; }
-        .image-container img { width: 400px; height: auto; border: 1px solid #ddd; border-radius: 5px; object-fit: cover; }
-        table { width: 100%; border-collapse: collapse; margin-top: 0; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .content-container { 
+            display: flex; 
+            gap: 20px; 
+            margin-bottom: 40px; 
+            align-items: flex-start; 
+        }
+        .image-container img { 
+            width: 400px; 
+            height: auto; 
+            border: 1px solid #ddd; 
+            border-radius: 5px; 
+            object-fit: cover; 
+            cursor: zoom-in; /* Add zoom-in cursor */
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 0; 
+        }
+        th, td { 
+            border: 1px solid #ddd; 
+            padding: 8px; 
+            text-align: left; 
+        }
         th { background-color: #f4f4f4; }
         tr:nth-child(even) { background-color: #f9f9f9; }
-        .message { text-align: center; margin-top: 20px; font-size: 18px; color: gray; }
+        .message { 
+            text-align: center; 
+            margin-top: 20px; 
+            font-size: 18px; 
+            color: gray; 
+        }
         .back-button { margin-top: 20px; }
+
+        /* Styles for the zoom overlay */
+        .img-zoom-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000; /* Ensure it's on top */
+        }
+        .img-zoom-overlay img {
+            max-width: 90%;
+            max-height: 90%;
+        }
+        .img-zoom-overlay span {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            color: white;
+            font-size: 30px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -123,7 +174,7 @@
             <div class="image-container">
                 <h3>Form Image</h3>
                 {% if form_image_url %}
-                    <img src="data:image/jpeg;base64,{{ form_image_url }}" alt="Form Image">
+                    <img src="data:image/jpeg;base64,{{ form_image_url }}" alt="Form Image" class="zoomable-image"> 
                 {% else %}
                     <p>No Form image available</p>
                 {% endif %}
@@ -171,5 +222,29 @@
     {% else %}
     <p class="message">Please enter a Nomor Input to search for QC Process data.</p>
     {% endif %}
+
+    <div class="img-zoom-overlay">
+        <img src="" alt="Zoomed Image">
+        <span>&times;</span> 
+    </div>
+
+    <script>
+        // JavaScript for image zoom functionality
+        const zoomableImages = document.querySelectorAll('.zoomable-image');
+        const zoomOverlay = document.querySelector('.img-zoom-overlay');
+        const zoomOverlayImg = zoomOverlay.querySelector('img');
+        const closeZoom = zoomOverlay.querySelector('span');
+
+        zoomableImages.forEach(img => {
+            img.addEventListener('click', () => {
+                zoomOverlayImg.src = img.src;
+                zoomOverlay.style.display = 'flex';
+            });
+        });
+
+        closeZoom.addEventListener('click', () => {
+            zoomOverlay.style.display = 'none';
+        });
+    </script>
 </body>
 </html>
