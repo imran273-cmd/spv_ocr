@@ -118,9 +118,9 @@ def qc_process():
                     ktp_image_url=None,
                     npwp_image_url=None,
                     form_image_url=None,
-                    ktp_data=None,
+                    ktp_data2=None,
                     npwp_data2=None,
-                    form_data=None
+                    form_data2=None
                 )
 
             cursor = conn.cursor()
@@ -167,9 +167,9 @@ def qc_process():
                 ktp_image_url=ktp_image_url,
                 npwp_image_url=npwp_image_url,
                 form_image_url=form_image_url,
-                ktp_data=ktp_result[1:] if ktp_result else None,
+                ktp_data2=ktp_result[1:] if ktp_result else None,
                 npwp_data2=npwp_result[1:] if npwp_result else None,
-                form_data=form_data
+                form_data2=form_data
             )
         except Exception as e:
             print(f"Error fetching QC Process data: {e}")
