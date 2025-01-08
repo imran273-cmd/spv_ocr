@@ -15,17 +15,42 @@
         tr:nth-child(even) { background-color: #f9f9f9; }
         .message { text-align: center; margin-top: 20px; font-size: 18px; color: gray; }
         .back-button { margin-top: 20px; }
+
+        /* Add styles for the magnifying glass effect */
+        .image-container { 
+            position: relative; 
+            display: inline-block; /* To keep the magnifying glass within the image container */
+        }
+        .magnifying-glass {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100px;
+            height: 100px;
+            background: url('magnifying-glass.png') no-repeat center center; /* Replace with your magnifying glass image */
+            background-size: contain;
+            opacity: 0; /* Hide the magnifying glass by default */
+            transition: opacity 0.3s ease; /* Add a smooth transition effect */
+            cursor: zoom-in; /* Change cursor to indicate zoom */
+        }
+        .image-container:hover .magnifying-glass {
+            opacity: 1; /* Show the magnifying glass on hover */
+        }
+        .magnifying-glass + img { /* Select the image that comes after the magnifying glass */
+            transition: transform 0.3s ease; /* Add a smooth transition effect */
+        }
+        .image-container:hover .magnifying-glass + img {
+            transform: scale(1.5); /* Magnify the image on hover */
+        }
     </style>
 </head>
 <body>
     <h1>QC Process</h1>
 
-    <!-- Back Button -->
     <div class="back-button">
         <button onclick="window.location.href='/'">Back to Index</button>
     </div>
 
-    <!-- Search Form -->
     <form class="search-form" method="get" action="/qc-process">
         <label for="search">Search by Nomor Input:</label>
         <input type="text" id="search" name="search" placeholder="Enter Nomor Input" value="{{ search_query }}">
@@ -35,7 +60,6 @@
     {% if search_query %}
         {% if ktp_image_url or npwp_image_url or form_image_url %}
 
-        <!-- KTP Section -->
         <div class="content-container">
             <div class="image-container">
                 <h3>KTP Image</h3>
@@ -80,7 +104,6 @@
             </div>
         </div>
 
-        <!-- NPWP Section -->
         <div class="content-container">
             <div class="image-container">
                 <h3>NPWP Image</h3>
@@ -123,12 +146,11 @@
             </div>
         </div>
 
-        <!-- Form Section -->
         <div class="content-container">
             <div class="image-container">
                 <h3>Form Image</h3>
                 {% if form_image_url %}
-                    <img src="data:image/jpeg;base64,{{ form_image_url }}" alt="Form Image">
+                    <div class="magnifying-glass"></div> <img src="data:image/jpeg;base64,{{ form_image_url }}" alt="Form Image">
                 {% else %}
                     <p>No Form image available</p>
                 {% endif %}
