@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Response, request, send_file, redirect, url_for, session
+from flask import Flask, render_template, Response, request
 import psycopg2
 import io
 from PIL import Image
@@ -7,12 +7,9 @@ matplotlib.use('Agg')  # Use Agg backend for rendering
 import matplotlib.pyplot as plt
 import base64
 from io import BytesIO
-# from xhtml2pdf import pisa  # library for PDF generation
-import hashlib  # for password hashing
 
 # Initialize the Flask application
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'  # Replace with a strong secret key
 
 # Database configuration
 DB_CONFIG = {
@@ -21,7 +18,6 @@ DB_CONFIG = {
     'user': 'postgres',
     'password': 'Jakarta83'
 }
-
 
 def connect_to_db():
     """Establishes a connection to the database."""
@@ -32,14 +28,12 @@ def connect_to_db():
         print(f"Error connecting to database: {e}")
         return None
 
-
 def add_values_on_bars(ax):
     """Adds value annotations on top of bars in a bar chart."""
     for bar in ax.patches:
-        ax.annotate(format(bar.get_height(), '.0f'),
+        ax.annotate(format(bar.get_height(), '.0f'), 
                     (bar.get_x() + bar.get_width() / 2, bar.get_height()),
                     ha='center', va='bottom')
-
 
 def generate_charts():
     """Generates pie chart and bar charts for nama_petugas, provinsi, and kabupaten_kota distribution."""
@@ -47,9 +41,7 @@ def generate_charts():
     if conn:
         try:
             cursor = conn.cursor()
-            cursor.execute(
-                "SELECT nama_petugas, row_1 AS provinsi, row_2 AS kabupaten_kota FROM ktp_data2"
-            )
+            cursor.execute("SELECT nama_petugas, row_1 AS provinsi, row_2 AS kabupaten_kota FROM ktp_data2")
             data = cursor.fetchall()
 
             # Data processing for charts
@@ -61,22 +53,18 @@ def generate_charts():
                 nama_petugas = row[0]
                 provinsi = row[1]
                 kabupaten_kota = row[2]
-                nama_petugas_count[nama_petugas] = nama_petugas_count.get(
-                    nama_petugas, 0) + 1
+                nama_petugas_count[nama_petugas] = nama_petugas_count.get(nama_petugas, 0) + 1
                 provinsi_count[provinsi] = provinsi_count.get(provinsi, 0) + 1
-                kabupaten_kota_count[kabupaten_kota] = kabupaten_kota_count.get(
-                    kabupaten_kota, 0) + 1
+                kabupaten_kota_count[kabupaten_kota] = kabupaten_kota_count.get(kabupaten_kota, 0) + 1
 
             # Generate pie chart for nama_petugas
             fig0, ax0 = plt.subplots()
-            ax0.pie(nama_petugas_count.values(),
-                    labels=nama_petugas_count.keys(),
-                    autopct='%1.1f%%')
+            ax0.pie(nama_petugas_count.values(), labels=nama_petugas_count.keys(), autopct='%1.1f%%')
             ax0.set_title('Distribution of Nama Petugas')
             pie_img = BytesIO()
             plt.savefig(pie_img, format='png')
             pie_img.seek(0)
-            pie_chart_url = base64.b64encode(pie_img.getvalue()).decode()
+            pie_chart_url = base64.b64encode(pie_img.getvalue()).decode('utf-8')
             plt.close(fig0)
 
             # Generate bar chart for provinsi
@@ -89,14 +77,12 @@ def generate_charts():
             bar_provinsi_img = BytesIO()
             plt.savefig(bar_provinsi_img, format='png')
             bar_provinsi_img.seek(0)
-            bar_provinsi_chart_url = base64.b64encode(
-                bar_provinsi_img.getvalue()).decode()
+            bar_provinsi_chart_url = base64.b64encode(bar_provinsi_img.getvalue()).decode('utf-8')
             plt.close(fig1)
 
             # Generate bar chart for kabupaten_kota
             fig2, ax2 = plt.subplots(figsize=(15, 6))
-            ax2.bar(kabupaten_kota_count.keys(),
-                    kabupaten_kota_count.values())
+            ax2.bar(kabupaten_kota_count.keys(), kabupaten_kota_count.values())
             ax2.set_title('Distribution by Kabupaten/Kota')
             ax2.set_xlabel('Kabupaten/Kota')
             ax2.set_ylabel('Count')
@@ -104,8 +90,7 @@ def generate_charts():
             bar_kabupaten_img = BytesIO()
             plt.savefig(bar_kabupaten_img, format='png')
             bar_kabupaten_img.seek(0)
-            bar_kabupaten_chart_url = base64.b64encode(
-                bar_kabupaten_img.getvalue()).decode()
+            bar_kabupaten_chart_url = base64.b64encode(bar_kabupaten_img.getvalue()).decode('utf-8')
             plt.close(fig2)
 
             return pie_chart_url, bar_provinsi_chart_url, bar_kabupaten_chart_url
@@ -117,7 +102,6 @@ def generate_charts():
     else:
         return None, None, None
 
-
 @app.route('/qc-process')
 def qc_process():
     """Displays QC Process images and data based on search by nomor_input."""
@@ -128,46 +112,46 @@ def qc_process():
 
             # If no search query is provided, render the page with an empty state
             if not search_query:
-                return render_template('qc_process.html',
-                                       search_query='',
-                                       ktp_image_url=None,
-                                       npwp_image_url=None,
-                                       form_image_url=None,
-                                       ktp_data=None,
-                                       npwp_data2=None,
-                                       form_data=None)
+                return render_template(
+                    'qc_process.html',
+                    search_query='',
+                    ktp_image_url=None,
+                    npwp_image_url=None,
+                    form_image_url=None,
+                    ktp_data2=None,
+                    npwp_data=None,
+                    form_data=None
+                )
 
             cursor = conn.cursor()
 
             # Fetch KTP image and data by nomor_input
             cursor.execute(
                 """SELECT scanned_image, nama_petugas, nomor_input, row_1, row_2, row_4, row_6, row_8 
-                    FROM ktp_data2 WHERE nomor_input = %s LIMIT 1""",
-                (search_query,))
+                   FROM ktp_data2 WHERE nomor_input = %s LIMIT 1""",
+                (search_query,)
+            )
             ktp_result = cursor.fetchone()
-            ktp_image_url = base64.b64encode(
-                ktp_result[0]).decode() if ktp_result and ktp_result[0] else None
+            ktp_image_url = base64.b64encode(ktp_result[0]).decode('utf-8') if ktp_result and ktp_result[0] else None
 
             # Fetch NPWP image and data by nomor_input
             cursor.execute(
                 """SELECT scanned_image, nama_petugas, nomor_input, row_2, row_4, row_5, row_7 
-                    FROM npwp_data2 WHERE nomor_input = %s LIMIT 1""",
-                (search_query,))
+                   FROM npwp_data2 WHERE nomor_input = %s LIMIT 1""",
+                (search_query,)
+            )
             npwp_result = cursor.fetchone()
-            npwp_image_url = base64.b64encode(
-                npwp_result[0]).decode() if npwp_result and npwp_result[
-                    0] else None
+            npwp_image_url = base64.b64encode(npwp_result[0]).decode('utf-8') if npwp_result and npwp_result[0] else None
 
             # Fetch Form image and additional data from form_data2 by nomor_input
             cursor.execute(
                 """SELECT scanned_image, nama_petugas, kartu_yang_dipilih, nama_pemberi_referensi, kode_cabang, 
-                        nama_cabang_capem, nama_lengkap_sesuai_ktp_paspor, nama_yang_dicetak_pada_kartu, nomor_ktp 
-                    FROM form_data2 WHERE nomor_input = %s LIMIT 1""",
-                (search_query,))
+                          nama_cabang_capem, nama_lengkap_sesuai_ktp_paspor, nama_yang_dicetak_pada_kartu, nomor_ktp 
+                   FROM form_data2 WHERE nomor_input = %s LIMIT 1""",
+                (search_query,)
+            )
             form_result = cursor.fetchone()
-            form_image_url = base64.b64encode(
-                form_result[0]).decode() if form_result and form_result[
-                    0] else None
+            form_image_url = base64.b64encode(form_result[0]).decode('utf-8') if form_result and form_result[0] else None
             form_data = form_result[1:] if form_result else None
 
             # Debug logs to ensure data is fetched correctly
@@ -177,16 +161,16 @@ def qc_process():
             print(f"Form Result: {form_result}")
 
             # Render the QC Process page with the data
-            return render_template('qc_process.html',
-                                   search_query=search_query,
-                                   ktp_image_url=ktp_image_url,
-                                   npwp_image_url=npwp_image_url,
-                                   form_image_url=form_image_url,
-                                   ktp_data=ktp_result[1:]
-                                   if ktp_result else None,
-                                   npwp_data2=npwp_result[1:]
-                                   if npwp_result else None,
-                                   form_data=form_data)
+            return render_template(
+                'qc_process.html',
+                search_query=search_query,
+                ktp_image_url=ktp_image_url,
+                npwp_image_url=npwp_image_url,
+                form_image_url=form_image_url,
+                ktp_data2=ktp_result[1:] if ktp_result else None,
+                npwp_data=npwp_result[1:] if npwp_result else None,
+                form_data=form_data
+            )
         except Exception as e:
             print(f"Error fetching QC Process data: {e}")
             return f"Error fetching QC Process data: {e}"
@@ -194,7 +178,6 @@ def qc_process():
             conn.close()
     else:
         return "Database connection failed"
-
 
 @app.route('/')
 def index():
@@ -221,19 +204,20 @@ def index():
             if search_query:
                 cursor.execute(
                     """SELECT nama_petugas, row_1 AS Provinsi, row_2 AS Kabupaten_Kota, 
-                            row_4 AS NIK, row_6 AS Nama, row_8 AS DOB, nomor_input 
-                        FROM ktp_data2 WHERE nama_petugas ILIKE %s""",
-                    (f"%{search_query}%",))
+                              row_4 AS NIK, row_6 AS Nama, row_8 AS DOB, nomor_input 
+                       FROM ktp_data2 WHERE nama_petugas ILIKE %s""",
+                    (f"%{search_query}%",)
+                )
             else:
                 cursor.execute(
                     """SELECT nama_petugas, row_1 AS Provinsi, row_2 AS Kabupaten_Kota, 
-                            row_4 AS NIK, row_6 AS Nama, row_8 AS DOB, nomor_input 
-                        FROM ktp_data2""")
+                              row_4 AS NIK, row_6 AS Nama, row_8 AS DOB, nomor_input 
+                       FROM ktp_data2"""
+                )
             data = cursor.fetchall()
 
             # Generate charts
-            pie_chart_url, bar_provinsi_chart_url, bar_kabupaten_chart_url = generate_charts(
-            )
+            pie_chart_url, bar_provinsi_chart_url, bar_kabupaten_chart_url = generate_charts()
 
             # Render the index template
             return render_template(
@@ -258,7 +242,6 @@ def index():
     else:
         return "Database connection failed"
 
-
 @app.route('/image/<int:id>')
 def get_image(id):
     """Fetches an image from the database by its ID and returns it as a response."""
@@ -266,8 +249,7 @@ def get_image(id):
     if conn:
         try:
             cursor = conn.cursor()
-            cursor.execute("SELECT scanned_image FROM ktp_data2 WHERE id = %s",
-                           (id,))
+            cursor.execute("SELECT scanned_image FROM ktp_data WHERE id = %s", (id,))
             image_data = cursor.fetchone()
             if image_data and image_data[0]:
                 image = Image.open(io.BytesIO(image_data[0]))
@@ -284,53 +266,6 @@ def get_image(id):
             conn.close()
     else:
         return "Database connection failed"
-
-
-def hash_password(password):
-    """Hashes the password using SHA-256."""
-    return hashlib.sha256(password.encode()).hexdigest()
-
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    """Handles user login."""
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        hashed_password = hash_password(password)
-
-        conn = connect_to_db()
-        if conn:
-            try:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT * FROM users WHERE username = %s AND password = %s",
-                    (username, hashed_password))
-                user = cursor.fetchone()
-                if user:
-                    session['logged_in'] = True
-                    session['username'] = user[
-                        1]  # Assuming username is the second column
-                    return redirect(url_for('index'))
-                else:
-                    return "Invalid username or password"
-            except Exception as e:
-                print(f"Error during login: {e}")
-                return "An error occurred"
-            finally:
-                conn.close()
-        else:
-            return "Database connection failed"
-    else:
-        return render_template('login.html')
-
-
-@app.route('/logout')
-def logout():
-    """Handles user logout."""
-    session.pop('logged_in', None)
-    return redirect(url_for('login'))
-
 
 if __name__ == '__main__':
     app.run(debug=True)
