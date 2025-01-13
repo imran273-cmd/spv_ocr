@@ -61,13 +61,16 @@
     <div class="container">
         <!-- Tabs -->
         <div class="tabs">
-            <div class="tab active" data-target="summary">Executive Summary</div>
-            <div class="tab" data-target="table">Data Table</div>
-            <div class="tab" data-target="qc-process">QC Process</div>
+            <div class="tab {% if not search_query %}active{% endif %}" data-target="summary">Executive Summary</div>
+            <div class="tab {% if search_query %}active{% endif %}" data-target="table">Data Table</div>
+            <!-- Change QC Process tab to link to Flask route -->
+            <div class="tab">
+                <a href="{{ url_for('qc_process') }}" style="text-decoration: none; color: inherit;">QC Process</a>
+            </div>
         </div>
 
         <!-- Executive Summary -->
-        <div id="summary" class="content active">
+        <div id="summary" class="content {% if not search_query %}active{% endif %}">
             <h2 class="text-center mb-4">Executive Summary</h2>
             <div class="row text-center">
                 <div class="col-md-4">
@@ -139,12 +142,13 @@
         </div>
 
         <!-- Data Table -->
-        <div id="table" class="content">
+        <div id="table" class="content {% if search_query %}active{% endif %}">
             <h2>Data Table</h2>
-            <form method="get" action="#table">
+            <form method="get" action="/">
                 <input type="text" class="form-control mb-3" name="search" placeholder="Search by Nama Petugas" value="{{ search_query }}">
                 <button type="submit" class="btn btn-primary">Search</button>
             </form>
+
             <table class="table table-bordered table-striped">
                 <thead>
                     <tr>
@@ -178,24 +182,26 @@
                 </tbody>
             </table>
         </div>
-
-        <!-- QC Process -->
-        <div id="qc-process" class="content">
-            <h2>QC Process</h2>
-            <!-- QC Process content goes here -->
-        </div>
     </div>
 
     <script>
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
-                document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-                tab.classList.add('active');
-                const target = tab.getAttribute('data-target');
-                document.querySelectorAll('.content').forEach(content => content.classList.remove('active'));
-                document.getElementById(target).classList.add('active');
+                if (!tab.querySelector('a')) { // Skip if it's a link (QC Process)
+                    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                    tab.classList.add('active');
+                    const target = tab.getAttribute('data-target');
+                    document.querySelectorAll('.content').forEach(content => content.classList.remove('active'));
+                    document.getElementById(target).classList.add('active');
+                }
             });
         });
+
+        // Activate the Data Table tab if there is a search query
+        const searchQuery = "{{ search_query }}";
+        if (searchQuery) {
+            document.querySelector('.tab[data-target="table"]').click();
+        }
     </script>
 </body>
 </html>
