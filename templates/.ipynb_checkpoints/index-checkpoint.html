@@ -52,6 +52,9 @@
             max-width: 100%;
             border-radius: 10px;
         }
+        .table-container, .chart-container {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -86,9 +89,44 @@
                     </div>
                 </div>
             </div>
-            <div class="chart-container text-center">
-                <h4>Distribution of Nama Petugas</h4>
-                <img src="data:image/png;base64,{{ pie_chart_url }}" alt="Nama Petugas Pie Chart">
+
+            <div class="row">
+                <!-- Users Table -->
+                <div class="col-md-6">
+                    <div class="table-container">
+                        <h4>Nama Petugas and Login Time</h4>
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Nama Petugas</th>
+                                    <th>Login Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if user_data %}
+                                    {% for row in user_data %}
+                                        <tr>
+                                            <td>{{ row[0] }}</td>
+                                            <td>{{ row[1] }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="2" class="text-center">No data available</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Pie Chart -->
+                <div class="col-md-6">
+                    <div class="chart-container text-center">
+                        <h4>Kinerja Petugas Berdasarkan Jumlah Dokumen</h4>
+                        <img src="data:image/png;base64,{{ pie_chart_url }}" alt="Nama Petugas Pie Chart">
+                    </div>
+                </div>
             </div>
             <div class="chart-container text-center">
                 <h4>Distribution by Provinsi</h4>
@@ -144,52 +182,20 @@
         <!-- QC Process -->
         <div id="qc-process" class="content">
             <h2>QC Process</h2>
-            <form method="get" action="/qc-process">
-                <input type="text" class="form-control mb-3" name="search" placeholder="Search by Nomor Input" value="{{ search_query }}">
-                <button type="submit" class="btn btn-primary">Search</button>
-            </form>
-            {% if search_query and (ktp_image_url or npwp_image_url) %}
-                <div class="image-container">
-                    <div>
-                        <h4>KTP Image</h4>
-                        {% if ktp_image_url %}
-                            <img src="data:image/jpeg;base64,{{ ktp_image_url }}" alt="KTP Image">
-                        {% else %}
-                            <p>No KTP image available</p>
-                        {% endif %}
-                    </div>
-                    <div>
-                        <h4>NPWP Image</h4>
-                        {% if npwp_image_url %}
-                            <img src="data:image/jpeg;base64,{{ npwp_image_url }}" alt="NPWP Image">
-                        {% else %}
-                            <p>No NPWP image available</p>
-                        {% endif %}
-                    </div>
-                </div>
-            {% else %}
-                <p class="text-center">Please search by Nomor Input to view images and data.</p>
-            {% endif %}
+            <!-- QC Process content goes here -->
         </div>
     </div>
 
     <script>
-        const tabs = document.querySelectorAll('.tab');
-        const contents = document.querySelectorAll('.content');
-
-        tabs.forEach(tab => {
+        document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
-                tabs.forEach(t => t.classList.remove('active'));
-                contents.forEach(c => c.classList.remove('active'));
+                document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
                 tab.classList.add('active');
-                document.getElementById(tab.dataset.target).classList.add('active');
+                const target = tab.getAttribute('data-target');
+                document.querySelectorAll('.content').forEach(content => content.classList.remove('active'));
+                document.getElementById(target).classList.add('active');
             });
         });
-
-        const hash = window.location.hash.substring(1);
-        if (hash) {
-            document.querySelector(`.tab[data-target="${hash}"]`)?.click();
-        }
     </script>
 </body>
 </html>

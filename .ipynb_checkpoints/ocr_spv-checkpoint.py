@@ -60,7 +60,7 @@ def generate_charts():
             # Generate pie chart for nama_petugas
             fig0, ax0 = plt.subplots()
             ax0.pie(nama_petugas_count.values(), labels=nama_petugas_count.keys(), autopct='%1.1f%%')
-            ax0.set_title('Distribution of Nama Petugas')
+            ax0.set_title('Distribusi Nama Petugas')
             pie_img = BytesIO()
             plt.savefig(pie_img, format='png')
             pie_img.seek(0)
@@ -199,6 +199,10 @@ def index():
             cursor.execute("SELECT COUNT(DISTINCT row_2) FROM ktp_data2")
             total_unique_kabupaten = cursor.fetchone()[0]
 
+            # Fetch user data (users' names and login times)
+            cursor.execute("SELECT username, last_login FROM users")
+            user_data = cursor.fetchall()
+
             # Handle search query for the Data Table tab
             search_query = request.args.get('search', '').strip()
             if search_query:
@@ -230,6 +234,7 @@ def index():
                 bar_kabupaten_chart_url=bar_kabupaten_chart_url,
                 search_query=search_query,
                 data=data,
+                user_data=user_data,  # Pass the user data to the template
             )
         except psycopg2.Error as e:
             print(f"PostgreSQL Error: {e}")
