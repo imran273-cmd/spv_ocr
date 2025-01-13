@@ -199,8 +199,8 @@ def index():
             cursor.execute("SELECT COUNT(DISTINCT row_2) FROM ktp_data2")
             total_unique_kabupaten = cursor.fetchone()[0]
 
-            # Fetch user data (users' names and login times)
-            cursor.execute("SELECT username, last_login FROM users")
+            # Fetch user data (users' names and login times), ordered by login time (latest first)
+            cursor.execute("SELECT username, last_login FROM users ORDER BY last_login DESC")
             user_data = cursor.fetchall()
 
             # Handle search query for the Data Table tab
@@ -234,7 +234,7 @@ def index():
                 bar_kabupaten_chart_url=bar_kabupaten_chart_url,
                 search_query=search_query,
                 data=data,
-                user_data=user_data,  # Pass the user data to the template
+                user_data=user_data,  # Pass the sorted user data to the template
             )
         except psycopg2.Error as e:
             print(f"PostgreSQL Error: {e}")
@@ -246,6 +246,7 @@ def index():
             conn.close()
     else:
         return "Database connection failed"
+
 
 @app.route('/image/<int:id>')
 def get_image(id):
