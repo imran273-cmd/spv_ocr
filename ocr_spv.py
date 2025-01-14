@@ -60,7 +60,7 @@ def generate_charts():
             # Generate pie chart for nama_petugas
             fig0, ax0 = plt.subplots()
             ax0.pie(nama_petugas_count.values(), labels=nama_petugas_count.keys(), autopct='%1.1f%%')
-            ax0.set_title('Distribution of Nama Petugas')
+            ax0.set_title('Distribusi Dokumen')
             pie_img = BytesIO()
             plt.savefig(pie_img, format='png')
             pie_img.seek(0)
