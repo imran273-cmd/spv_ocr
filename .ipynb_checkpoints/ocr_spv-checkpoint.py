@@ -60,7 +60,7 @@ def generate_charts():
             # Generate pie chart for nama_petugas
             fig0, ax0 = plt.subplots()
             ax0.pie(nama_petugas_count.values(), labels=nama_petugas_count.keys(), autopct='%1.1f%%')
-            ax0.set_title('Distribution of Nama Petugas')
+            ax0.set_title('Distribusi Dokumen')
             pie_img = BytesIO()
             plt.savefig(pie_img, format='png')
             pie_img.seek(0)
@@ -108,6 +108,7 @@ def qc_process():
     conn = connect_to_db()
     if conn:
         try:
+            # Get search query from request
             search_query = request.args.get('search', '').strip()
 
             # If no search query is provided, render the page with an empty state
@@ -132,7 +133,12 @@ def qc_process():
                 (search_query,)
             )
             ktp_result = cursor.fetchone()
-            ktp_image_url = base64.b64encode(ktp_result[0]).decode('utf-8') if ktp_result and ktp_result[0] else None
+            if ktp_result and ktp_result[0]:
+                ktp_image_url = base64.b64encode(ktp_result[0]).decode('utf-8')
+                ktp_data2 = ktp_result[1:]  # Additional data columns from KTP
+            else:
+                ktp_image_url = None
+                ktp_data2 = None
 
             # Fetch NPWP image and data by nomor_input
             cursor.execute(
@@ -141,7 +147,12 @@ def qc_process():
                 (search_query,)
             )
             npwp_result = cursor.fetchone()
-            npwp_image_url = base64.b64encode(npwp_result[0]).decode('utf-8') if npwp_result and npwp_result[0] else None
+            if npwp_result and npwp_result[0]:
+                npwp_image_url = base64.b64encode(npwp_result[0]).decode('utf-8')
+                npwp_data = npwp_result[1:]  # Additional data columns from NPWP
+            else:
+                npwp_image_url = None
+                npwp_data = None
 
             # Fetch Form image and additional data from form_data2 by nomor_input
             cursor.execute(
@@ -151,8 +162,12 @@ def qc_process():
                 (search_query,)
             )
             form_result = cursor.fetchone()
-            form_image_url = base64.b64encode(form_result[0]).decode('utf-8') if form_result and form_result[0] else None
-            form_data = form_result[1:] if form_result else None
+            if form_result and form_result[0]:
+                form_image_url = base64.b64encode(form_result[0]).decode('utf-8')
+                form_data = form_result[1:]  # Additional data columns from Form
+            else:
+                form_image_url = None
+                form_data = None
 
             # Debug logs to ensure data is fetched correctly
             print(f"Search Query: {search_query}")
@@ -160,15 +175,15 @@ def qc_process():
             print(f"NPWP Result: {npwp_result}")
             print(f"Form Result: {form_result}")
 
-            # Render the QC Process page with the data
+            # Return the rendered template with the fetched data
             return render_template(
                 'qc_process.html',
                 search_query=search_query,
                 ktp_image_url=ktp_image_url,
                 npwp_image_url=npwp_image_url,
                 form_image_url=form_image_url,
-                ktp_data2=ktp_result[1:] if ktp_result else None,
-                npwp_data=npwp_result[1:] if npwp_result else None,
+                ktp_data2=ktp_data2,
+                npwp_data=npwp_data,
                 form_data=form_data
             )
         except Exception as e:
@@ -198,6 +213,10 @@ def index():
             # Fetch total unique kabupaten/kota
             cursor.execute("SELECT COUNT(DISTINCT row_2) FROM ktp_data2")
             total_unique_kabupaten = cursor.fetchone()[0]
+
+            # Fetch user data (users' names and login times), ordered by login time (latest first)
+            cursor.execute("SELECT username, last_login FROM users ORDER BY last_login DESC")
+            user_data = cursor.fetchall()
 
             # Handle search query for the Data Table tab
             search_query = request.args.get('search', '').strip()
@@ -230,6 +249,7 @@ def index():
                 bar_kabupaten_chart_url=bar_kabupaten_chart_url,
                 search_query=search_query,
                 data=data,
+                user_data=user_data,  # Pass the sorted user data to the template
             )
         except psycopg2.Error as e:
             print(f"PostgreSQL Error: {e}")
@@ -241,6 +261,7 @@ def index():
             conn.close()
     else:
         return "Database connection failed"
+
 
 @app.route('/image/<int:id>')
 def get_image(id):
