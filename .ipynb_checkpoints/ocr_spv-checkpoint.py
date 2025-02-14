@@ -121,7 +121,7 @@ def qc_process():
                     form_image_url=None,
                     ktp_data2=None,
                     npwp_data=None,
-                    form_data=None
+                    form_data3=None
                 )
 
             cursor = conn.cursor()
@@ -156,8 +156,8 @@ def qc_process():
 
             # Fetch Form image and additional data from form_data3 by nomor_input
             cursor.execute(
-                """SELECT scanned_image, nama_petugas, kartu_yang_dipilih, nama_pemberi_referensi, kode_cabang, 
-                          nama_cabang_capem, nama_lengkap_ktp_paspor, nama_yang_dicetak_pada_kartu, nomor_ktp 
+                """SELECT scanned_image, nama_petugas,nomor_input, kartu_yang_dipilih, kode_cabang,cobrand,
+                          nama_cabang_capem, nama_yang_dicetak_pada_kartu, nomor_ktp 
                    FROM form_data3 WHERE nomor_input = %s LIMIT 1""",
                 (search_query,)
             )
