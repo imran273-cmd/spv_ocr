@@ -51,8 +51,10 @@ def generate_charts():
 
             for row in data:
                 nama_petugas = row[0]
-                provinsi = row[1]
+                # Clean the provinsi by removing "PROVINSI" (case-insensitive)
+                provinsi = row[1].replace("PROVINSI", "").strip() if row[1] else ""
                 kabupaten_kota = row[2]
+                
                 nama_petugas_count[nama_petugas] = nama_petugas_count.get(nama_petugas, 0) + 1
                 provinsi_count[provinsi] = provinsi_count.get(provinsi, 0) + 1
                 kabupaten_kota_count[kabupaten_kota] = kabupaten_kota_count.get(kabupaten_kota, 0) + 1
@@ -261,7 +263,6 @@ def index():
             conn.close()
     else:
         return "Database connection failed"
-
 
 @app.route('/image/<int:id>')
 def get_image(id):
