@@ -3,57 +3,200 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit QC Process</title>
+    <title>QC Process</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
-        .back-button { margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .search-form { margin-bottom: 20px; }
+        .content-container { display: flex; gap: 20px; margin-bottom: 40px; align-items: flex-start; }
+        .image-container img { width: 400px; height: auto; border: 1px solid #ddd; border-radius: 5px; object-fit: cover; }
+        table { width: 100%; border-collapse: collapse; margin-top: 0; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f4f4f4; }
         tr:nth-child(even) { background-color: #f9f9f9; }
-        .submit-button { margin-top: 20px; }
+        .message { text-align: center; margin-top: 20px; font-size: 18px; color: gray; }
+        .back-button { margin-top: 20px; }
+
+        /* Add styles for the magnifying glass effect */
+        .image-container { 
+            position: relative; 
+            display: inline-block; /* To keep the magnifying glass within the image container */
+        }
+        .magnifying-glass {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100px;
+            height: 100px;
+            background: url('magnifying-glass.png') no-repeat center center; /* Replace with your magnifying glass image */
+            background-size: contain;
+            opacity: 0; /* Hide the magnifying glass by default */
+            transition: opacity 0.3s ease; /* Add a smooth transition effect */
+            cursor: zoom-in; /* Change cursor to indicate zoom */
+        }
+        .image-container:hover .magnifying-glass {
+            opacity: 1; /* Show the magnifying glass on hover */
+        }
+        .magnifying-glass + img { /* Select the image that comes after the magnifying glass */
+            transition: transform 0.3s ease; /* Add a smooth transition effect */
+        }
+        .image-container:hover .magnifying-glass + img {
+            transform: scale(1.5); /* Magnify the image on hover */
+        }
     </style>
 </head>
 <body>
-    <h1>Edit QC Process</h1>
+    <h1>QC Process</h1>
 
     <div class="back-button">
-        <button onclick="window.location.href='/qc-process?search={{ id }}'">Back to QC Process</button>
+        <button onclick="window.location.href='/'">Back to Index</button>
     </div>
 
-    <!-- Form to edit KTP data -->
-    <form method="POST">
-        <h3>Edit KTP Data</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Nama Petugas</th>
-                    <th>Nomor Input</th>
-                    <th>Provinsi</th>
-                    <th>Kabupaten/Kota</th>
-                    <th>NIK</th>
-                    <th>Nama</th>
-                    <th>DOB</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><input type="text" name="nama_petugas" value="{{ ktp_data[0] }}"></td>
-                    <td><input type="text" name="nomor_input" value="{{ ktp_data[1] }}" readonly></td>
-                    <td><input type="text" name="provinsi" value="{{ ktp_data[2] }}"></td>
-                    <td><input type="text" name="kabupaten_kota" value="{{ ktp_data[3] }}"></td>
-                    <td><input type="text" name="nik" value="{{ ktp_data[4] }}"></td>
-                    <td><input type="text" name="nama" value="{{ ktp_data[5] }}"></td>
-                    <td><input type="date" name="dob" value="{{ ktp_data[6] }}"></td>
-                </tr>
-            </tbody>
-        </table>
-
-        <div class="submit-button">
-            <button type="submit">Update KTP Data</button>
-        </div>
+    <form class="search-form" method="get" action="/qc-process">
+        <label for="search">Search by Nomor Input:</label>
+        <input type="text" id="search" name="search" placeholder="Enter Nomor Input" value="{{ search_query }}">
+        <button type="submit">Search</button>
     </form>
 
-    <!-- Add similar forms for NPWP and Form data if necessary -->
+    {% if search_query %}
+        {% if ktp_image_url or npwp_image_url or form_image_url %}
+
+        <div class="content-container">
+            <div class="image-container">
+                <h3>KTP Image</h3>
+                {% if ktp_image_url %}
+                    <img src="data:image/jpeg;base64,{{ ktp_image_url }}" alt="KTP Image">
+                {% else %}
+                    <p>No KTP image available</p>
+                {% endif %}
+            </div>
+            <div class="table-container">
+                <h3>KTP Data</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nama Petugas</th>
+                            <th>Nomor Input</th>
+                            <th>Provinsi</th>
+                            <th>Kabupaten/Kota</th>
+                            <th>NIK</th>
+                            <th>Nama</th>
+                            <th>DOB</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if ktp_data2 %}
+                            <tr>
+                                <td>{{ ktp_data2[0] }}</td>
+                                <td>{{ ktp_data2[1] }}</td>
+                                <td>{{ ktp_data2[2] }}</td>
+                                <td>{{ ktp_data2[3] }}</td>
+                                <td>{{ ktp_data2[4] }}</td>
+                                <td>{{ ktp_data2[5] }}</td>
+                                <td>{{ ktp_data2[6] }}</td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="7" style="text-align: center;">No KTP data available</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="content-container">
+            <div class="image-container">
+                <h3>NPWP Image</h3>
+                {% if npwp_image_url %}
+                    <img src="data:image/jpeg;base64,{{ npwp_image_url }}" alt="NPWP Image">
+                {% else %}
+                    <p>No NPWP image available</p>
+                {% endif %}
+            </div>
+            <div class="table-container">
+                <h3>NPWP Data</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nama Petugas</th>
+                            <th>Nomor Input</th>
+                            <th>Dirjen Pajak</th>
+                            <th>NPWP</th>
+                            <th>NIK</th>
+                            <th>Nama</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if npwp_data %}
+                            <tr>
+                                <td>{{ npwp_data[0] }}</td>
+                                <td>{{ npwp_data[1] }}</td>
+                                <td>{{ npwp_data[2] }}</td>
+                                <td>{{ npwp_data[3] }}</td>
+                                <td>{{ npwp_data[4] }}</td>
+                                <td>{{ npwp_data[5] }}</td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="6" style="text-align: center;">No NPWP data available</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="content-container">
+            <div class="image-container">
+                <h3>Form Image</h3>
+                {% if form_image_url %}
+                    <div class="magnifying-glass"></div> <img src="data:image/jpeg;base64,{{ form_image_url }}" alt="Form Image">
+                {% else %}
+                    <p>No Form image available</p>
+                {% endif %}
+            </div>
+            <div class="table-container">
+                <h3>Form Data</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nama Petugas</th>
+                            <th>Nomor Input</th>
+                            <th>Kartu Yang Dipilih</th>
+                            <th>Kode Cabang</th>
+                            <th>Nama Cabang Capem</th>
+                            <th>Nama Lengkap Sesuai KTP/Paspor</th>
+                            <th>Nama Yang Dicetak Pada Kartu</th>
+                            <th>Nomor KTP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if form_data %}
+                            <tr>
+                                <td>{{ form_data[0] }}</td>
+                                <td>{{ form_data[1] }}</td>
+                                <td>{{ form_data[2] }}</td>
+                                <td>{{ form_data[3] }}</td>
+                                <td>{{ form_data[4] }}</td>
+                                <td>{{ form_data[5] }}</td>
+                                <td>{{ form_data[6] }}</td>
+                                <td>{{ form_data[7] }}</td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="8" style="text-align: center;">No Form data available</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% else %}
+        <p class="message">No data or images found for "{{ search_query }}".</p>
+        {% endif %}
+    {% else %}
+    <p class="message">Please enter a Nomor Input to search for QC Process data.</p>
+    {% endif %}
 </body>
 </html>
