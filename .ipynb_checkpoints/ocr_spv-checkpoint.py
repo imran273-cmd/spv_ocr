@@ -100,12 +100,13 @@ def generate_charts():
         plt.close(fig0)
 
         # Bar Chart for Provinsi
+        sorted_provinsi = dict(sorted(provinsi_count.items(), key=lambda item: item[1], reverse=True))
         fig1, ax1 = plt.subplots(figsize=(15, 15))
-        ax1.barh(provinsi_count.keys(), provinsi_count.values(), color='skyblue')
-        ax1.set_title('Distribusi berdasarkan Provinsi')
-        ax1.set_xlabel('Provinsi')
-        ax1.set_ylabel('Jumlah')
-        plt.xticks(rotation=45, ha="right")
+        ax1.barh(list(sorted_provinsi.keys()), list(sorted_provinsi.values()), color='skyblue')
+        ax1.set_title('Distribusi berdasarkan Provinsi', fontsize=30)
+        ax1.set_xlabel('Jumlah', fontsize=20)  # Ubah label sumbu X ke "Jumlah"
+        ax1.set_ylabel('Provinsi', fontsize=20)  # Ubah label sumbu Y ke "Provinsi"
+        plt.xticks(rotation=45, ha="right", fontsize=15)
         add_values_on_bars(ax1)
         plt.tight_layout()
         bar_provinsi_img_buffer = BytesIO()
@@ -115,12 +116,13 @@ def generate_charts():
         plt.close(fig1)
 
         # Bar Chart for Kabupaten/Kota
+        sorted_kabupaten = dict(sorted(kabupaten_kota_count.items(), key=lambda item: item[1], reverse=True))
         fig2, ax2 = plt.subplots(figsize=(15, 15))
-        ax2.barh(kabupaten_kota_count.keys(), kabupaten_kota_count.values(), color='lightcoral')
-        ax2.set_title('Distribusi berdasarkan Kabupaten/Kota')
-        ax2.set_xlabel('Kabupaten/Kota')
-        ax2.set_ylabel('Jumlah')
-        plt.xticks(rotation=60, ha="right") # Adjusted rotation
+        ax2.barh(list(sorted_kabupaten.keys()), list(sorted_kabupaten.values()), color='lightcoral')
+        ax2.set_title('Distribusi berdasarkan Kabupaten/Kota', fontsize=30)
+        ax2.set_xlabel('Jumlah', fontsize=20)
+        ax2.set_ylabel('Kabupaten/Kota', fontsize=20)
+        plt.xticks(rotation=60, ha="right", fontsize=15)
         add_values_on_bars(ax2)
         plt.tight_layout()
         bar_kabupaten_img_buffer = BytesIO()
