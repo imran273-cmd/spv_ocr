@@ -106,7 +106,7 @@ def generate_charts():
         ax1.set_title('Distribusi berdasarkan Provinsi', fontsize=30)
         ax1.set_xlabel('Jumlah', fontsize=20)  # Ubah label sumbu X ke "Jumlah"
         ax1.set_ylabel('Provinsi', fontsize=20)  # Ubah label sumbu Y ke "Provinsi"
-        plt.xticks(rotation=45, ha="right", fontsize=15)
+        plt.xticks(rotation=0, ha="right", fontsize=20)
         add_values_on_bars(ax1)
         plt.tight_layout()
         bar_provinsi_img_buffer = BytesIO()
@@ -122,7 +122,7 @@ def generate_charts():
         ax2.set_title('Distribusi berdasarkan Kabupaten/Kota', fontsize=30)
         ax2.set_xlabel('Jumlah', fontsize=20)
         ax2.set_ylabel('Kabupaten/Kota', fontsize=20)
-        plt.xticks(rotation=60, ha="right", fontsize=15)
+        plt.xticks(rotation=0, ha="right", fontsize=20)
         add_values_on_bars(ax2)
         plt.tight_layout()
         bar_kabupaten_img_buffer = BytesIO()
