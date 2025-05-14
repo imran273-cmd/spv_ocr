@@ -33,12 +33,16 @@ def connect_to_db():
         print(f"DATABASE CONNECTION ERROR: {e}")
         return None
 
-def add_values_on_bars(ax):
-    """Adds value annotations on top of bars in a bar chart."""
+# MODIFIED: Helper function for horizontal bars with fontsize parameter
+def add_values_on_horizontal_bars(ax, fontsize=10):
+    """Adds value annotations next to horizontal bars in a bar chart."""
     for bar in ax.patches:
-        ax.annotate(format(bar.get_height(), '.0f'),
-                    (bar.get_x() + bar.get_width() / 2, bar.get_height()),
-                    ha='center', va='bottom', xytext=(0, 5), textcoords='offset points')
+        ax.annotate(format(bar.get_width(), '.0f'),    # Get bar width for value
+                    (bar.get_width(), bar.get_y() + bar.get_height() / 2.), # Position
+                    ha='left', va='center',            # Align to the left of the point, vertically centered
+                    xytext=(5, 0),                     # Offset text (5 points to the right)
+                    textcoords='offset points',
+                    fontsize=fontsize)                 # Set font size
 
 def generate_charts():
     """Generates pie chart and bar charts for nama_petugas, provinsi, and kabupaten_kota distribution."""
@@ -49,9 +53,9 @@ def generate_charts():
     try:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT nama_petugas, row_1 AS provinsi, row_2 AS kabupaten_kota 
-            FROM ktp_data2 
-            WHERE row_1 IS NOT NULL AND TRIM(row_1) <> '' AND 
+            SELECT nama_petugas, row_1 AS provinsi, row_2 AS kabupaten_kota
+            FROM ktp_data2
+            WHERE row_1 IS NOT NULL AND TRIM(row_1) <> '' AND
                   row_2 IS NOT NULL AND TRIM(row_2) <> '' AND
                   nama_petugas IS NOT NULL AND TRIM(nama_petugas) <> ''
         """)
@@ -83,16 +87,16 @@ def generate_charts():
             nama_petugas_count[nama_petugas] = nama_petugas_count.get(nama_petugas, 0) + 1
             provinsi_count[provinsi] = provinsi_count.get(provinsi, 0) + 1
             kabupaten_kota_count[kabupaten_kota] = kabupaten_kota_count.get(kabupaten_kota, 0) + 1
-        
+
         if not nama_petugas_count: # Check again after processing
             print("CHARTS: No data after processing for charts.")
             return None, None, None
 
         # Pie Chart for Petugas
         fig0, ax0 = plt.subplots(figsize=(8, 8)) # Ensure it's large enough
-        ax0.pie(nama_petugas_count.values(), labels=nama_petugas_count.keys(), autopct='%1.1f%%', startangle=90)
+        ax0.pie(nama_petugas_count.values(), labels=nama_petugas_count.keys(), autopct='%1.1f%%', startangle=90, textprops={'fontsize': 10}) # Can adjust label font size here too
         ax0.axis('equal')
-        ax0.set_title('Distribusi Dokumen oleh Petugas', pad=20)
+        ax0.set_title('Distribusi Dokumen oleh Petugas', pad=20, fontsize=16)
         pie_img_buffer = BytesIO()
         plt.savefig(pie_img_buffer, format='png', bbox_inches='tight')
         pie_img_buffer.seek(0)
@@ -101,32 +105,76 @@ def generate_charts():
 
         # Bar Chart for Provinsi
         sorted_provinsi = dict(sorted(provinsi_count.items(), key=lambda item: item[1], reverse=True))
-        fig1, ax1 = plt.subplots(figsize=(15, 15))
+        # Adjust figsize if needed, especially if you have many provinces
+        fig1, ax1 = plt.subplots(figsize=(10, max(8, len(sorted_provinsi) * 0.5))) # Dynamic height
         ax1.barh(list(sorted_provinsi.keys()), list(sorted_provinsi.values()), color='skyblue')
-        ax1.set_title('Distribusi berdasarkan Provinsi', fontsize=30)
-        ax1.set_xlabel('Jumlah', fontsize=20)  # Ubah label sumbu X ke "Jumlah"
-        ax1.set_ylabel('Provinsi', fontsize=20)  # Ubah label sumbu Y ke "Provinsi"
-        plt.xticks(rotation=0, ha="right", fontsize=20)
-        add_values_on_bars(ax1)
+        ax1.set_title('Distribusi berdasarkan Provinsi', fontsize=20) # Reduced title slightly
+        ax1.set_xlabel('Jumlah', fontsize=16)
+        ax1.set_ylabel('Provinsi', fontsize=16)
+        ax1.tick_params(axis='x', labelsize=14) # X-axis numbers
+        ax1.tick_params(axis='y', labelsize=14) # Y-axis (Provinsi names) - INCREASED
+        # Invert y-axis to have the highest count at the top
+        ax1.invert_yaxis()
+        add_values_on_horizontal_bars(ax1, fontsize=12) # Use new helper, set fontsize - INCREASED
         plt.tight_layout()
         bar_provinsi_img_buffer = BytesIO()
-        plt.savefig(bar_provinsi_img_buffer, format='png')
+        plt.savefig(bar_provinsi_img_buffer, format='png', bbox_inches='tight') # Added bbox_inches
         bar_provinsi_img_buffer.seek(0)
         bar_provinsi_chart_url = base64.b64encode(bar_provinsi_img_buffer.getvalue()).decode('utf-8')
         plt.close(fig1)
 
         # Bar Chart for Kabupaten/Kota
-        sorted_kabupaten = dict(sorted(kabupaten_kota_count.items(), key=lambda item: item[1], reverse=True))
-        fig2, ax2 = plt.subplots(figsize=(15, 15))
-        ax2.barh(list(sorted_kabupaten.keys()), list(sorted_kabupaten.values()), color='lightcoral')
-        ax2.set_title('Distribusi berdasarkan Kabupaten/Kota', fontsize=30)
-        ax2.set_xlabel('Jumlah', fontsize=20)
-        ax2.set_ylabel('Kabupaten/Kota', fontsize=20)
-        plt.xticks(rotation=0, ha="right", fontsize=20)
-        add_values_on_bars(ax2)
+        # Limit the number of kabupaten/kota to display if there are too many, e.g., top 20
+        top_n_kabupaten = 30 # Or adjust as needed
+        sorted_kabupaten_items = sorted(kabupaten_kota_count.items(), key=lambda item: item[1], reverse=True)
+        
+        # Check if there's an "Unknown" category and how many others there are
+        num_known_kabupaten = len([k for k,v in sorted_kabupaten_items if k != "Unknown"])
+
+        if num_known_kabupaten > top_n_kabupaten:
+            top_kabupaten = dict(sorted_kabupaten_items[:top_n_kabupaten])
+            others_count = sum(v for k,v in sorted_kabupaten_items[top_n_kabupaten:])
+            if "Unknown" in top_kabupaten and others_count > 0: # if unknown is already in top N, add others to it
+                 top_kabupaten["Lainnya (Known)"] = top_kabupaten.get("Lainnya (Known)", 0) + others_count
+            elif "Unknown" not in top_kabupaten and "Unknown" in kabupaten_kota_count and others_count > 0:
+                 top_kabupaten["Lainnya (Known)"] = top_kabupaten.get("Lainnya (Known)", 0) + others_count
+                 top_kabupaten["Unknown"] = kabupaten_kota_count["Unknown"]
+            elif others_count > 0 :
+                 top_kabupaten["Lainnya"] = others_count
+
+            if "Unknown" in kabupaten_kota_count and "Unknown" not in top_kabupaten:
+                # Ensure "Unknown" is still displayed if it exists and wasn't part of the "others" sum
+                 if not any(k.startswith("Lainnya") for k in top_kabupaten.keys()) and ("Unknown" in kabupaten_kota_count):
+                     # if "Lainnya" was not created, Unknown might have been cut, add it back if it exists
+                     if len(top_kabupaten) >= top_n_kabupaten and kabupaten_kota_count.get("Unknown",0) > 0 :
+                         # if top_n is full and Unknown exists, replace the smallest item if Unknown is larger
+                         # This logic can get complex; simpler to just ensure "Unknown" is part of the displayed items
+                         # For now, let's assume the "Lainnya" handles it or Unknown is in top N.
+                         pass
+
+
+            kabupaten_to_plot = top_kabupaten
+            # Re-sort if "Lainnya" or "Unknown" was added/modified
+            kabupaten_to_plot = dict(sorted(kabupaten_to_plot.items(), key=lambda item: item[1], reverse=True))
+
+        else:
+            kabupaten_to_plot = dict(sorted_kabupaten_items)
+
+
+        # Dynamic height for kabupaten chart
+        fig2, ax2 = plt.subplots(figsize=(10, max(8, len(kabupaten_to_plot) * 0.5)))
+        ax2.barh(list(kabupaten_to_plot.keys()), list(kabupaten_to_plot.values()), color='lightcoral')
+        ax2.set_title(f'Distribusi berdasarkan Kabupaten/Kota (Top {len(kabupaten_to_plot)})', fontsize=20)
+        ax2.set_xlabel('Jumlah', fontsize=16)
+        ax2.set_ylabel('Kabupaten/Kota', fontsize=16)
+        ax2.tick_params(axis='x', labelsize=14) # X-axis numbers
+        ax2.tick_params(axis='y', labelsize=14) # Y-axis (Kabupaten/Kota names) - INCREASED
+        # Invert y-axis to have the highest count at the top
+        ax2.invert_yaxis()
+        add_values_on_horizontal_bars(ax2, fontsize=12) # Use new helper, set fontsize - INCREASED
         plt.tight_layout()
         bar_kabupaten_img_buffer = BytesIO()
-        plt.savefig(bar_kabupaten_img_buffer, format='png')
+        plt.savefig(bar_kabupaten_img_buffer, format='png', bbox_inches='tight') # Added bbox_inches
         bar_kabupaten_img_buffer.seek(0)
         bar_kabupaten_chart_url = base64.b64encode(bar_kabupaten_img_buffer.getvalue()).decode('utf-8')
         plt.close(fig2)
@@ -174,7 +222,7 @@ def prepare_image_for_frontend(original_bytes, target_size=(350, 200), final_out
     if not original_bytes:
         print("PREPARE IMAGE: original_bytes is None.")
         return None
-    
+
     print(f"PREPARE IMAGE: Received {len(original_bytes)} bytes. Target format: {final_output_format}.")
     image_bytes_to_process = None
 
@@ -194,7 +242,7 @@ def prepare_image_for_frontend(original_bytes, target_size=(350, 200), final_out
     try:
         img_io = io.BytesIO(image_bytes_to_process)
         img = Image.open(img_io)
-        
+
         # Ensure image is in RGB or RGBA mode if saving as JPEG, or just L (grayscale) or RGB/RGBA for PNG
         if final_output_format.upper() == 'JPEG' and img.mode not in ('RGB', 'L'):
             print(f"PREPARE IMAGE: Converting image mode from {img.mode} to RGB for JPEG saving.")
@@ -215,7 +263,7 @@ def prepare_image_for_frontend(original_bytes, target_size=(350, 200), final_out
             img.save(output_io, format=final_output_format, quality=85) # Add quality for JPEG
         else: # PNG
             img.save(output_io, format=final_output_format)
-        
+
         encoded_image_bytes = base64.b64encode(output_io.getvalue()).decode('utf-8')
         print(f"PREPARE IMAGE: Successfully processed and encoded image to base64 ({final_output_format}).")
         return encoded_image_bytes
@@ -296,18 +344,18 @@ def qc_process():
                 }
             else:
                 print("QC PROCESS: No NPWP result found for this nomor_input.")
-            
+
             # Fetch Form (form_data3) image and data
             print("QC PROCESS: Fetching Form (form_data3) data...")
             form_data3_sql_query = """
-                SELECT scanned_image, nama_petugas, nomor_input, 
+                SELECT scanned_image, nama_petugas, nomor_input,
                        kartu_yang_dipilih, cobrand, nama_pemberi_referensi, nik,
                        nomor_kartu_mnc_bank, kode_cabang, nama_cabang_capem,
                        nama_lengkap_ktp_paspor, nama_yang_dicetak_pada_kartu, nomor_ktp,
                        jenis_kelamin, tempat_lahir, tanggal_lahir, status_perkawinan,
                        jumlah_tanggungan, pendidikan, nama_universitas, email,
                        nama_ibu_kandung
-                FROM form_data3 
+                FROM form_data3
                 WHERE nomor_input = %s LIMIT 1
             """
             cursor.execute(form_data3_sql_query, (search_query,))
@@ -335,7 +383,7 @@ def qc_process():
                 }
             else:
                 print("QC PROCESS: No Form (form_data3) result found for this nomor_input.")
-            
+
             if not ktp_result and not npwp_result and not form_result:
                  error_message = f"No data found for Nomor Input: '{search_query}'."
 
@@ -350,7 +398,7 @@ def qc_process():
                 cursor.close()
             if conn:
                 conn.close()
-    
+
     print(f"QC PROCESS: Rendering template. KTP URL: {bool(ktp_image_url)}, NPWP URL: {bool(npwp_image_url)}, Form URL: {bool(form_data3_image_url)}")
     return render_template(
         'qc_process.html',
@@ -371,11 +419,12 @@ def index():
     cursor = None
     if not conn:
         return "Database connection failed for index page."
-    
+
     total_register, total_unique_provinces, total_unique_kabupaten = 0, 0, 0
     user_data, data_table_rows = [], []
     pie_chart_url, bar_provinsi_chart_url, bar_kabupaten_chart_url = None, None, None
     search_query = request.args.get('search', '').strip()
+    colnames = [] # Initialize colnames
 
     try:
         cursor = conn.cursor()
@@ -387,7 +436,7 @@ def index():
 
         cursor.execute("SELECT COUNT(DISTINCT TRIM(UPPER(row_2))) FROM ktp_data2 WHERE row_2 IS NOT NULL AND TRIM(row_2) != ''")
         total_unique_kabupaten = (cursor.fetchone() or [0])[0]
-        
+
         cursor.execute("SELECT username, last_login FROM users ORDER BY last_login DESC NULLS LAST")
         user_data = cursor.fetchall()
 
@@ -399,13 +448,16 @@ def index():
             base_query_data_table += " WHERE nama_petugas ILIKE %s OR nomor_input ILIKE %s OR row_6 ILIKE %s OR row_4 ILIKE %s"
             search_like = f"%{search_query}%"
             query_params.extend([search_like, search_like, search_like, search_like])
-        
+
         base_query_data_table += " ORDER BY id DESC LIMIT 100"
         cursor.execute(base_query_data_table, query_params if query_params else None)
         data_table_rows_raw = cursor.fetchall()
         # Get column names for the table header
-        colnames = [desc[0] for desc in cursor.description]
-        data_table_rows = [dict(zip(colnames, row)) for row in data_table_rows_raw]
+        if cursor.description:
+            colnames = [desc[0] for desc in cursor.description]
+            data_table_rows = [dict(zip(colnames, row)) for row in data_table_rows_raw]
+        else: # Handle case where query might return no results and no description
+            data_table_rows = []
 
 
         pie_chart_url, bar_provinsi_chart_url, bar_kabupaten_chart_url = generate_charts()
@@ -421,7 +473,7 @@ def index():
             cursor.close()
         if conn:
             conn.close()
-            
+
     return render_template(
         'index.html',
         total_register=total_register,
@@ -431,7 +483,7 @@ def index():
         bar_provinsi_chart_url=bar_provinsi_chart_url,
         bar_kabupaten_chart_url=bar_kabupaten_chart_url,
         search_query=search_query,
-        data_table_header=colnames if 'colnames' in locals() else [],
+        data_table_header=colnames,
         data_table_rows=data_table_rows,
         user_data=user_data,
     )
@@ -443,7 +495,7 @@ def get_image_direct(doc_type, nomor_input_str):
     conn = connect_to_db()
     cursor = None
     if not conn: return "Database connection failed", 503
-    
+
     try:
         cursor = conn.cursor()
         table_map = {'ktp': 'ktp_data2', 'npwp': 'npwp_data2', 'form': 'form_data3'}
@@ -493,5 +545,5 @@ if __name__ == '__main__':
     magnifying_glass_path = os.path.join(static_folder, 'magnifying-glass.png')
     if not os.path.exists(magnifying_glass_path):
         print(f"WARNING: Magnifying glass image not found at {magnifying_glass_path}. Zoom feature might not show icon.")
-    
+
     app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=True)
