@@ -164,7 +164,7 @@ def generate_charts():
         # Dynamic height for kabupaten chart
         fig2, ax2 = plt.subplots(figsize=(10, max(8, len(kabupaten_to_plot) * 0.5)))
         ax2.barh(list(kabupaten_to_plot.keys()), list(kabupaten_to_plot.values()), color='lightcoral')
-        ax2.set_title(f'Distribusi berdasarkan Kabupaten/Kota (Top {len(kabupaten_to_plot)})', fontsize=20)
+        ax2.set_title(f'Distribusi berdasarkan Kabupaten/Kota', fontsize=20)
         ax2.set_xlabel('Jumlah', fontsize=16)
         ax2.set_ylabel('Kabupaten/Kota', fontsize=16)
         ax2.tick_params(axis='x', labelsize=14) # X-axis numbers
