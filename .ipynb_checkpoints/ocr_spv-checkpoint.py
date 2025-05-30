@@ -1,31 +1,26 @@
 from flask import Flask, render_template, Response, request
 import psycopg2
-import psycopg2.extras # Not strictly used here but often useful
+import psycopg2.extras
 import io
-from PIL import Image # For image resizing and handling
+from PIL import Image, UnidentifiedImageError
 import matplotlib
-matplotlib.use('Agg') # Use a non-interactive backend for Matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import base64
-from io import BytesIO # For matplotlib charts and image streams
-import fitz # PyMuPDF for PDF processing
-import os # For checking static file if needed
+from io import BytesIO
+import fitz # PyMuPDF
+import os
 
-# Initialize the Flask application
 app = Flask(__name__)
 
-# Database configuration
 DB_CONFIG = {
     'host': 'localhost',
     'database': 'postgres',
     'user': 'postgres',
-    'password': 'Jakarta83' # IMPORTANT: Use environment variables or secrets for production
+    'password': 'Jakarta83'
 }
 
-# --- Helper Functions ---
-
 def connect_to_db():
-    """Establishes a connection to the database."""
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         return conn
@@ -33,19 +28,18 @@ def connect_to_db():
         print(f"DATABASE CONNECTION ERROR: {e}")
         return None
 
-# MODIFIED: Helper function for horizontal bars with fontsize parameter
 def add_values_on_horizontal_bars(ax, fontsize=10):
-    """Adds value annotations next to horizontal bars in a bar chart."""
     for bar in ax.patches:
-        ax.annotate(format(bar.get_width(), '.0f'),    # Get bar width for value
-                    (bar.get_width(), bar.get_y() + bar.get_height() / 2.), # Position
-                    ha='left', va='center',            # Align to the left of the point, vertically centered
-                    xytext=(5, 0),                     # Offset text (5 points to the right)
+        ax.annotate(format(bar.get_width(), '.0f'),
+                    (bar.get_width(), bar.get_y() + bar.get_height() / 2.),
+                    ha='left', va='center',
+                    xytext=(5, 0),
                     textcoords='offset points',
-                    fontsize=fontsize)                 # Set font size
+                    fontsize=fontsize)
 
 def generate_charts():
-    """Generates pie chart and bar charts for nama_petugas, provinsi, and kabupaten_kota distribution."""
+    # ... (generate_charts code remains largely the same, no direct image processing here) ...
+    # For brevity, I'll keep it as is from your original if no changes are needed for this problem
     conn = connect_to_db()
     cursor = None
     if not conn:
@@ -105,76 +99,52 @@ def generate_charts():
 
         # Bar Chart for Provinsi
         sorted_provinsi = dict(sorted(provinsi_count.items(), key=lambda item: item[1], reverse=True))
-        # Adjust figsize if needed, especially if you have many provinces
         fig1, ax1 = plt.subplots(figsize=(10, max(8, len(sorted_provinsi) * 0.5))) # Dynamic height
         ax1.barh(list(sorted_provinsi.keys()), list(sorted_provinsi.values()), color='skyblue')
-        ax1.set_title('Distribusi berdasarkan Provinsi', fontsize=20) # Reduced title slightly
+        ax1.set_title('Distribusi berdasarkan Provinsi', fontsize=20)
         ax1.set_xlabel('Jumlah', fontsize=16)
         ax1.set_ylabel('Provinsi', fontsize=16)
-        ax1.tick_params(axis='x', labelsize=14) # X-axis numbers
-        ax1.tick_params(axis='y', labelsize=14) # Y-axis (Provinsi names) - INCREASED
-        # Invert y-axis to have the highest count at the top
+        ax1.tick_params(axis='x', labelsize=14)
+        ax1.tick_params(axis='y', labelsize=14)
         ax1.invert_yaxis()
-        add_values_on_horizontal_bars(ax1, fontsize=12) # Use new helper, set fontsize - INCREASED
+        add_values_on_horizontal_bars(ax1, fontsize=12)
         plt.tight_layout()
         bar_provinsi_img_buffer = BytesIO()
-        plt.savefig(bar_provinsi_img_buffer, format='png', bbox_inches='tight') # Added bbox_inches
+        plt.savefig(bar_provinsi_img_buffer, format='png', bbox_inches='tight')
         bar_provinsi_img_buffer.seek(0)
         bar_provinsi_chart_url = base64.b64encode(bar_provinsi_img_buffer.getvalue()).decode('utf-8')
         plt.close(fig1)
 
         # Bar Chart for Kabupaten/Kota
-        # Limit the number of kabupaten/kota to display if there are too many, e.g., top 20
-        top_n_kabupaten = 30 # Or adjust as needed
+        top_n_kabupaten = 30
         sorted_kabupaten_items = sorted(kabupaten_kota_count.items(), key=lambda item: item[1], reverse=True)
-        
-        # Check if there's an "Unknown" category and how many others there are
         num_known_kabupaten = len([k for k,v in sorted_kabupaten_items if k != "Unknown"])
 
         if num_known_kabupaten > top_n_kabupaten:
             top_kabupaten = dict(sorted_kabupaten_items[:top_n_kabupaten])
             others_count = sum(v for k,v in sorted_kabupaten_items[top_n_kabupaten:])
-            if "Unknown" in top_kabupaten and others_count > 0: # if unknown is already in top N, add others to it
-                 top_kabupaten["Lainnya (Known)"] = top_kabupaten.get("Lainnya (Known)", 0) + others_count
-            elif "Unknown" not in top_kabupaten and "Unknown" in kabupaten_kota_count and others_count > 0:
-                 top_kabupaten["Lainnya (Known)"] = top_kabupaten.get("Lainnya (Known)", 0) + others_count
-                 top_kabupaten["Unknown"] = kabupaten_kota_count["Unknown"]
-            elif others_count > 0 :
-                 top_kabupaten["Lainnya"] = others_count
-
+            if others_count > 0:
+                top_kabupaten["Lainnya"] = top_kabupaten.get("Lainnya", 0) + others_count
             if "Unknown" in kabupaten_kota_count and "Unknown" not in top_kabupaten:
-                # Ensure "Unknown" is still displayed if it exists and wasn't part of the "others" sum
-                 if not any(k.startswith("Lainnya") for k in top_kabupaten.keys()) and ("Unknown" in kabupaten_kota_count):
-                     # if "Lainnya" was not created, Unknown might have been cut, add it back if it exists
-                     if len(top_kabupaten) >= top_n_kabupaten and kabupaten_kota_count.get("Unknown",0) > 0 :
-                         # if top_n is full and Unknown exists, replace the smallest item if Unknown is larger
-                         # This logic can get complex; simpler to just ensure "Unknown" is part of the displayed items
-                         # For now, let's assume the "Lainnya" handles it or Unknown is in top N.
-                         pass
-
-
-            kabupaten_to_plot = top_kabupaten
-            # Re-sort if "Lainnya" or "Unknown" was added/modified
-            kabupaten_to_plot = dict(sorted(kabupaten_to_plot.items(), key=lambda item: item[1], reverse=True))
-
+                 is_unknown_in_others = any(item[0] == "Unknown" for item in sorted_kabupaten_items[top_n_kabupaten:])
+                 if not is_unknown_in_others :
+                     top_kabupaten["Unknown"] = kabupaten_kota_count["Unknown"]
+            kabupaten_to_plot = dict(sorted(top_kabupaten.items(), key=lambda item: item[1], reverse=True))
         else:
             kabupaten_to_plot = dict(sorted_kabupaten_items)
 
-
-        # Dynamic height for kabupaten chart
         fig2, ax2 = plt.subplots(figsize=(10, max(8, len(kabupaten_to_plot) * 0.5)))
         ax2.barh(list(kabupaten_to_plot.keys()), list(kabupaten_to_plot.values()), color='lightcoral')
         ax2.set_title(f'Distribusi berdasarkan Kabupaten/Kota', fontsize=20)
         ax2.set_xlabel('Jumlah', fontsize=16)
         ax2.set_ylabel('Kabupaten/Kota', fontsize=16)
-        ax2.tick_params(axis='x', labelsize=14) # X-axis numbers
-        ax2.tick_params(axis='y', labelsize=14) # Y-axis (Kabupaten/Kota names) - INCREASED
-        # Invert y-axis to have the highest count at the top
+        ax2.tick_params(axis='x', labelsize=14)
+        ax2.tick_params(axis='y', labelsize=14)
         ax2.invert_yaxis()
-        add_values_on_horizontal_bars(ax2, fontsize=12) # Use new helper, set fontsize - INCREASED
+        add_values_on_horizontal_bars(ax2, fontsize=12)
         plt.tight_layout()
         bar_kabupaten_img_buffer = BytesIO()
-        plt.savefig(bar_kabupaten_img_buffer, format='png', bbox_inches='tight') # Added bbox_inches
+        plt.savefig(bar_kabupaten_img_buffer, format='png', bbox_inches='tight')
         bar_kabupaten_img_buffer.seek(0)
         bar_kabupaten_chart_url = base64.b64encode(bar_kabupaten_img_buffer.getvalue()).decode('utf-8')
         plt.close(fig2)
@@ -188,92 +158,192 @@ def generate_charts():
             cursor.close()
         if conn:
             conn.close()
+    return None, None, None # Fallback
 
-def convert_pdf_page_to_image_bytes(pdf_bytes, page_number=0, dpi=150, output_image_format="png"):
-    """Converts a specific page of a PDF (from bytes) to image bytes."""
-    if not pdf_bytes:
-        print("PDF CONVERSION: No PDF bytes provided.")
+# --- MODIFIED PDF Conversion Function ---
+def convert_pdf_page_to_image_bytes(pdf_data_from_db, page_number=0, dpi=150, output_image_format="png"):
+    """Converts a specific page of a PDF (from bytes or memoryview) to image bytes."""
+    if not pdf_data_from_db:
+        print("PDF CONVERSION: No PDF data provided.")
         return None
+
+    actual_pdf_bytes = None
+    if isinstance(pdf_data_from_db, memoryview):
+        print(f"PDF CONVERSION: Input is memoryview (length {len(pdf_data_from_db)}), converting to bytes.")
+        actual_pdf_bytes = pdf_data_from_db.tobytes()
+    elif isinstance(pdf_data_from_db, bytes):
+        print(f"PDF CONVERSION: Input is bytes (length {len(pdf_data_from_db)}).")
+        actual_pdf_bytes = pdf_data_from_db
+    else:
+        print(f"PDF CONVERSION ERROR: Input data is type {type(pdf_data_from_db)}, expected 'bytes' or 'memoryview'. Cannot process.")
+        try:
+            data_repr = repr(pdf_data_from_db[:50]) if hasattr(pdf_data_from_db, '__getitem__') and len(pdf_data_from_db) >=50 else repr(pdf_data_from_db)
+            print(f"PDF CONVERSION ERROR: Snippet: {data_repr}")
+        except Exception as repr_e:
+            print(f"PDF CONVERSION ERROR: Could not get snippet for type {type(pdf_data_from_db)}. Repr error: {repr_e}")
+        return None
+
+    if not actual_pdf_bytes:
+        print("PDF CONVERSION ERROR: actual_pdf_bytes is None after type checks (should not happen if input was valid memoryview/bytes).")
+        return None
+
+    print(f"PDF CONVERSION: Attempting to open PDF stream of {len(actual_pdf_bytes)} bytes with PyMuPDF.")
+    pdf_document = None
     try:
-        pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
+        # filetype="pdf" is important when opening from a stream
+        pdf_document = fitz.open(stream=actual_pdf_bytes, filetype="pdf")
+
         if not len(pdf_document):
-            print("PDF CONVERSION: PDF has no pages.")
-            pdf_document.close()
+            print("PDF CONVERSION: PyMuPDF opened document, but it has no pages.")
             return None
 
         actual_page_number = max(0, min(page_number, len(pdf_document) - 1))
-
         page = pdf_document.load_page(actual_page_number)
+        
+        print(f"PDF CONVERSION: Loaded page {actual_page_number}. Attempting to get pixmap (DPI: {dpi}).")
         pixmap = page.get_pixmap(dpi=dpi)
-        image_bytes = pixmap.tobytes(output=output_image_format.lower())
-        pdf_document.close()
-        print(f"PDF CONVERSION: Successfully converted page {actual_page_number} to {output_image_format.upper()}.")
-        return image_bytes
+        
+        output_format_lower = output_image_format.lower()
+        print(f"PDF CONVERSION: Pixmap obtained. Converting to bytes (format: {output_format_lower}).")
+        image_bytes_result = pixmap.tobytes(output=output_format_lower)
+        
+        print(f"PDF CONVERSION: Successfully converted page {actual_page_number} to {output_image_format.upper()}. Output size: {len(image_bytes_result)} bytes.")
+        return image_bytes_result
+
     except Exception as e:
-        print(f"PDF CONVERSION ERROR: {e}")
-        return None
+        error_type = type(e).__name__
+        error_msg = str(e)
+        snippet = actual_pdf_bytes[:80] if actual_pdf_bytes else b'' # Show a slightly larger snippet
+        print(f"PDF CONVERSION ERROR (PyMuPDF): {error_type}: {error_msg}.")
+        print(f"PDF CONVERSION INFO: Input data length: {len(actual_pdf_bytes) if actual_pdf_bytes else 0}, Snippet (first 80 bytes): {snippet!r}")
 
-def prepare_image_for_frontend(original_bytes, target_size=(350, 200), final_output_format='PNG'):
+        if "cannot open" in error_msg.lower() or \
+           "format error" in error_msg.lower() or \
+           "no objects found" in error_msg.lower() or \
+           "cannot recognize stream type" in error_msg.lower() or \
+           "mupdf error" in error_msg.lower(): # Common PyMuPDF error phrases
+            print("PDF CONVERSION DETAIL: The error strongly suggests the input data is not a valid/recognized PDF for PyMuPDF, or it is corrupted.")
+        elif "out of memory" in error_msg.lower():
+            print("PDF CONVERSION DETAIL: PyMuPDF ran out of memory. PDF might be too complex or DPI too high for available resources.")
+        
+        # --- Optional: Save problematic PDF data for manual inspection ---
+        # import time
+        # timestamp = time.strftime("%Y%m%d-%H%M%S")
+        # error_filename = f"debug_pdf_failed_{timestamp}.pdf"
+        # try:
+        #     with open(error_filename, "wb") as f_err:
+        #         f_err.write(actual_pdf_bytes)
+        #     print(f"PDF CONVERSION DEBUG: Problematic PDF data (if it was PDF) saved to '{error_filename}' for inspection.")
+        # except Exception as save_e:
+        #     print(f"PDF CONVERSION DEBUG: Could not save problematic data: {save_e}")
+        # --- End Optional Save ---
+        return None
+    finally:
+        if pdf_document:
+            print("PDF CONVERSION: Closing PyMuPDF document.")
+            pdf_document.close()
+
+# --- MODIFIED Image Preparation Function ---
+def prepare_image_for_frontend(original_data_from_db, target_size=(350, 200), final_output_format='PNG'):
     """
-    If original_bytes is a PDF, converts its first page to an image.
+    If original_data_from_db is a PDF, converts its first page to an image.
     Then, resizes the (converted or original) image, and encodes to base64.
-    Uses Pillow's thumbnail method to maintain aspect ratio.
     """
-    if not original_bytes:
-        print("PREPARE IMAGE: original_bytes is None.")
+    if not original_data_from_db:
+        print("PREPARE IMAGE: original_data_from_db is None or empty.")
         return None
 
-    print(f"PREPARE IMAGE: Received {len(original_bytes)} bytes. Target format: {final_output_format}.")
+    print(f"PREPARE IMAGE: Received data of type {type(original_data_from_db)}, length {len(original_data_from_db) if hasattr(original_data_from_db, '__len__') else 'N/A'}. Target output format: {final_output_format}.")
+    
     image_bytes_to_process = None
 
-    # Attempt PDF conversion (first page, higher DPI for initial render before thumbnail)
-    converted_from_pdf = convert_pdf_page_to_image_bytes(original_bytes, page_number=0, dpi=200, output_image_format="png")
+    # Attempt PDF conversion first
+    # convert_pdf_page_to_image_bytes handles memoryview to bytes conversion internally
+    converted_from_pdf_bytes = convert_pdf_page_to_image_bytes(
+        original_data_from_db, 
+        page_number=0, 
+        dpi=200, # Higher DPI for initial render, then thumbnail
+        output_image_format="png" # PyMuPDF will output PNG bytes
+    )
 
-    if converted_from_pdf:
-        image_bytes_to_process = converted_from_pdf
+    if converted_from_pdf_bytes:
+        image_bytes_to_process = converted_from_pdf_bytes
+        print(f"PREPARE IMAGE: Using PDF-converted image data (now PNG, {len(image_bytes_to_process)} bytes).")
     else:
-        print("PREPARE IMAGE: Assuming input is already an image format (PDF conversion failed or not a PDF).")
-        image_bytes_to_process = original_bytes
+        print("PREPARE IMAGE: PDF conversion failed or data was not a processable PDF. Attempting to process original data with Pillow.")
+        # Ensure original_data_from_db is bytes for Pillow if it wasn't a PDF (or PDF conversion failed)
+        if isinstance(original_data_from_db, memoryview):
+            print("PREPARE IMAGE: Original data was memoryview, converting to bytes for Pillow.")
+            image_bytes_to_process = original_data_from_db.tobytes()
+        elif isinstance(original_data_from_db, bytes):
+            print("PREPARE IMAGE: Original data was already bytes for Pillow.")
+            image_bytes_to_process = original_data_from_db
+        else:
+            # This case should ideally be caught by convert_pdf_page_to_image_bytes if it was an unsupported type
+            print(f"PREPARE IMAGE ERROR: Original data for Pillow is neither bytes nor memoryview (type: {type(original_data_from_db)}). Cannot process with Pillow.")
+            return None
 
     if not image_bytes_to_process:
-        print("PREPARE IMAGE: No image bytes to process after PDF check.")
+        print("PREPARE IMAGE ERROR: No image bytes to process after PDF check and original data check.")
         return None
 
     try:
         img_io = io.BytesIO(image_bytes_to_process)
-        img = Image.open(img_io)
+        img = Image.open(img_io) # Pillow opens the (PNG from PDF, or original JFIF/PNG/etc.)
 
-        # Ensure image is in RGB or RGBA mode if saving as JPEG, or just L (grayscale) or RGB/RGBA for PNG
+        original_pil_format = img.format
+        print(f"PREPARE IMAGE: Pillow opened image. Original format (Pillow's view): {original_pil_format}, Mode: {img.mode}, Size: {img.size}")
+
         if final_output_format.upper() == 'JPEG' and img.mode not in ('RGB', 'L'):
             print(f"PREPARE IMAGE: Converting image mode from {img.mode} to RGB for JPEG saving.")
             img = img.convert('RGB')
-        elif final_output_format.upper() == 'PNG' and img.mode == 'CMYK': # PNG doesn't directly support CMYK well in PIL for web
+        elif final_output_format.upper() == 'PNG' and img.mode == 'CMYK':
             print(f"PREPARE IMAGE: Converting image mode from CMYK to RGBA for PNG saving.")
             img = img.convert('RGBA')
+        elif img.mode == 'P': # Palette mode
+             # Convert P mode to RGBA if it has transparency, otherwise RGB, for broader compatibility
+            if 'transparency' in img.info:
+                print(f"PREPARE IMAGE: Converting image mode from {img.mode} (with transparency) to RGBA.")
+                img = img.convert('RGBA')
+            else:
+                print(f"PREPARE IMAGE: Converting image mode from {img.mode} to RGB.")
+                img = img.convert('RGB')
 
 
-        original_format = img.format # Store original format if available
-        print(f"PREPARE IMAGE: Opened image. Original format (if known): {original_format}, Mode: {img.mode}")
-
-        img.thumbnail(target_size, Image.Resampling.LANCZOS if hasattr(Image, 'Resampling') else Image.LANCZOS)
+        resample_filter = Image.Resampling.LANCZOS if hasattr(Image, 'Resampling') else Image.LANCZOS
+        img.thumbnail(target_size, resample_filter)
         print(f"PREPARE IMAGE: Resized to fit within {target_size}. New size: {img.size}")
 
         output_io = io.BytesIO()
+        save_params = {}
         if final_output_format.upper() == 'JPEG':
-            img.save(output_io, format=final_output_format, quality=85) # Add quality for JPEG
-        else: # PNG
-            img.save(output_io, format=final_output_format)
+            save_params['quality'] = 85
+        # For PNG, 'optimize=True' can reduce file size but takes longer
+        # elif final_output_format.upper() == 'PNG':
+        #     save_params['optimize'] = True 
+            
+        img.save(output_io, format=final_output_format.upper(), **save_params)
 
-        encoded_image_bytes = base64.b64encode(output_io.getvalue()).decode('utf-8')
-        print(f"PREPARE IMAGE: Successfully processed and encoded image to base64 ({final_output_format}).")
-        return encoded_image_bytes
-    except Exception as e:
-        print(f"PREPARE IMAGE ERROR: Error resizing/encoding image: {e}")
+        encoded_image_string = base64.b64encode(output_io.getvalue()).decode('utf-8')
+        print(f"PREPARE IMAGE: Successfully processed and encoded image to base64 ({final_output_format}). Output string length: {len(encoded_image_string)}")
+        return encoded_image_string
+        
+    except UnidentifiedImageError as un_err:
+        print(f"PREPARE IMAGE ERROR (Pillow): UnidentifiedImageError: {un_err}. "
+              "Pillow couldn't recognize the image format. This occurs if PDF conversion failed AND "
+              "the original data was not a Pillow-compatible image (e.g., corrupted, or a PDF PyMuPDF couldn't handle).")
+        snippet = image_bytes_to_process[:80] if image_bytes_to_process else b''
+        print(f"PREPARE IMAGE ERROR (Pillow): Data snippet (first 80 bytes): {snippet!r}")
         return None
-
+    except Exception as e:
+        print(f"PREPARE IMAGE ERROR (Pillow): Error during Pillow processing (resizing/encoding): {type(e).__name__}: {e}")
+        return None
 
 @app.route('/qc-process')
 def qc_process():
+    # ... (qc_process code remains largely the same, calls prepare_image_for_frontend) ...
+    # Ensure it correctly passes the raw data from DB (ktp_result[0], etc.)
+    # to prepare_image_for_frontend.
     search_query = request.args.get('search', '').strip()
     ktp_image_url, npwp_image_url, form_data3_image_url = None, None, None
     ktp_data2, npwp_data2, form_data3_data = None, None, None
@@ -299,7 +369,7 @@ def qc_process():
             cursor = conn.cursor()
             ktp_npwp_preview_size = (450, 280)
             form_preview_size = (600, 850)
-            output_image_type = 'PNG' # Use PNG for clearer text on scanned docs
+            output_image_type = 'PNG'
 
             # Fetch KTP image and data
             print("QC PROCESS: Fetching KTP data...")
@@ -312,7 +382,9 @@ def qc_process():
                 print("QC PROCESS: KTP result found.")
                 if ktp_result[0]:
                     print("QC PROCESS: KTP scanned_image found, preparing for frontend...")
+                    # ktp_result[0] is the raw data from DB (likely memoryview or bytes)
                     ktp_image_url = prepare_image_for_frontend(ktp_result[0], ktp_npwp_preview_size, final_output_format=output_image_type)
+                    if not ktp_image_url: print("QC PROCESS: KTP image preparation failed.")
                 else:
                     print("QC PROCESS: KTP scanned_image is NULL.")
                 ktp_data2 = {
@@ -335,6 +407,7 @@ def qc_process():
                 if npwp_result[0]:
                     print("QC PROCESS: NPWP scanned_image found, preparing for frontend...")
                     npwp_image_url = prepare_image_for_frontend(npwp_result[0], ktp_npwp_preview_size, final_output_format=output_image_type)
+                    if not npwp_image_url: print("QC PROCESS: NPWP image preparation failed.")
                 else:
                     print("QC PROCESS: NPWP scanned_image is NULL.")
                 npwp_data2 = {
@@ -360,12 +433,12 @@ def qc_process():
             """
             cursor.execute(form_data3_sql_query, (search_query,))
             form_result = cursor.fetchone()
-
             if form_result:
                 print("QC PROCESS: Form (form_data3) result found.")
                 if form_result[0]:
                     print("QC PROCESS: Form scanned_image found, preparing for frontend...")
                     form_data3_image_url = prepare_image_for_frontend(form_result[0], form_preview_size, final_output_format=output_image_type)
+                    if not form_data3_image_url: print("QC PROCESS: Form_data3 image preparation failed.")
                 else:
                     print("QC PROCESS: Form scanned_image is NULL.")
                 form_data3_data = {
@@ -391,8 +464,8 @@ def qc_process():
             error_message = f"Database error: {db_err}"
             print(f"QC PROCESS DATABASE ERROR: {db_err}")
         except Exception as e:
-            error_message = f"An unexpected error occurred: {e}"
-            print(f"QC PROCESS UNEXPECTED ERROR: {e}")
+            error_message = f"An unexpected error occurred: {type(e).__name__}: {e}"
+            print(f"QC PROCESS UNEXPECTED ERROR: {type(e).__name__}: {e}")
         finally:
             if cursor:
                 cursor.close()
@@ -415,6 +488,7 @@ def qc_process():
 
 @app.route('/')
 def index():
+    # ... (index route remains largely the same) ...
     conn = connect_to_db()
     cursor = None
     if not conn:
@@ -424,7 +498,7 @@ def index():
     user_data, data_table_rows = [], []
     pie_chart_url, bar_provinsi_chart_url, bar_kabupaten_chart_url = None, None, None
     search_query = request.args.get('search', '').strip()
-    colnames = [] # Initialize colnames
+    colnames = []
 
     try:
         cursor = conn.cursor()
@@ -452,13 +526,12 @@ def index():
         base_query_data_table += " ORDER BY id DESC LIMIT 100"
         cursor.execute(base_query_data_table, query_params if query_params else None)
         data_table_rows_raw = cursor.fetchall()
-        # Get column names for the table header
+        
         if cursor.description:
             colnames = [desc[0] for desc in cursor.description]
             data_table_rows = [dict(zip(colnames, row)) for row in data_table_rows_raw]
-        else: # Handle case where query might return no results and no description
+        else:
             data_table_rows = []
-
 
         pie_chart_url, bar_provinsi_chart_url, bar_kabupaten_chart_url = generate_charts()
 
@@ -466,8 +539,8 @@ def index():
         print(f"INDEX PAGE DB ERROR: {e}")
         return f"PostgreSQL Error on Index Page: {e}"
     except Exception as e:
-        print(f"INDEX PAGE ERROR: {e}")
-        return f"Error fetching data for Index Page: {e}"
+        print(f"INDEX PAGE ERROR: {type(e).__name__}: {e}")
+        return f"Error fetching data for Index Page: {type(e).__name__}: {e}"
     finally:
         if cursor:
             cursor.close()
@@ -487,60 +560,110 @@ def index():
         data_table_rows=data_table_rows,
         user_data=user_data,
     )
+    return "Error in index." # Fallback
 
-# This direct image route might be less used if all images are embedded, but good for testing.
+# --- MODIFIED Direct Image Route ---
 @app.route('/image_direct/<doc_type>/<nomor_input_str>')
 def get_image_direct(doc_type, nomor_input_str):
-    """Serves an image directly. If stored as PDF, converts first page to PNG."""
     conn = connect_to_db()
     cursor = None
-    if not conn: return "Database connection failed", 503
+    if not conn:
+        return "Database connection failed", 503
 
     try:
         cursor = conn.cursor()
         table_map = {'ktp': 'ktp_data2', 'npwp': 'npwp_data2', 'form': 'form_data3'}
         table_name = table_map.get(doc_type.lower())
-        if not table_name: return "Invalid document type", 400
+        if not table_name:
+            return "Invalid document type", 400
 
         cursor.execute(f"SELECT scanned_image FROM {table_name} WHERE nomor_input = %s LIMIT 1", (nomor_input_str,))
         db_row = cursor.fetchone()
 
         if db_row and db_row[0]:
-            original_bytes = db_row[0]
+            original_data_from_db = db_row[0] # This is likely memoryview or bytes
             image_to_serve_bytes = None
-            mimetype = 'image/png' # Defaulting to PNG as PDF conversion outputs PNG
+            mimetype = 'image/png'  # Default, as PDF or other conversions will target PNG
 
-            converted_image = convert_pdf_page_to_image_bytes(original_bytes, output_image_format="png", dpi=150)
-            if converted_image:
-                image_to_serve_bytes = converted_image
-            else: # If PDF conversion failed, try to serve original assuming it's an image
-                print(f"DIRECT IMAGE: PDF conversion failed for {doc_type}/{nomor_input_str}. Attempting to serve original bytes.")
-                image_to_serve_bytes = original_bytes
-                # Try to infer mimetype if not PDF (this is a basic attempt)
+            print(f"DIRECT IMAGE: Fetched data of type {type(original_data_from_db)}, length {len(original_data_from_db) if hasattr(original_data_from_db, '__len__') else 'N/A'} for {doc_type}/{nomor_input_str}.")
+
+            # 1. Attempt PDF conversion
+            # convert_pdf_page_to_image_bytes handles memoryview internally
+            converted_pdf_bytes = convert_pdf_page_to_image_bytes(
+                original_data_from_db, 
+                output_image_format="png", 
+                dpi=150 # DPI for direct viewing
+            )
+
+            if converted_pdf_bytes:
+                image_to_serve_bytes = converted_pdf_bytes
+                mimetype = 'image/png'
+                print(f"DIRECT IMAGE: Serving PDF ({doc_type}/{nomor_input_str}) converted to PNG ({len(image_to_serve_bytes)} bytes).")
+            else:
+                # 2. PDF conversion failed or it wasn't a PDF. Try to process with Pillow.
+                print(f"DIRECT IMAGE: PDF conversion failed or not a PDF for {doc_type}/{nomor_input_str}. Attempting to process original data with Pillow.")
+                
+                bytes_for_pillow = None
+                if isinstance(original_data_from_db, memoryview):
+                    print("DIRECT IMAGE: Original data was memoryview, converting to bytes for Pillow.")
+                    bytes_for_pillow = original_data_from_db.tobytes()
+                elif isinstance(original_data_from_db, bytes):
+                    print("DIRECT IMAGE: Original data was already bytes for Pillow.")
+                    bytes_for_pillow = original_data_from_db
+                
+                if not bytes_for_pillow:
+                    print(f"DIRECT IMAGE ERROR: Original data for Pillow is not bytes/memoryview (type: {type(original_data_from_db)}). Cannot process.")
+                    return "Error: Invalid data type from database for non-PDF image processing.", 500
+
                 try:
-                    temp_img = Image.open(io.BytesIO(original_bytes))
-                    inferred_mime = Image.MIME.get(temp_img.format.upper())
-                    if inferred_mime: mimetype = inferred_mime
-                    print(f"DIRECT IMAGE: Inferred MIME type: {mimetype}")
-                except Exception as e_mime:
-                    print(f"DIRECT IMAGE: Could not infer MIME type from original bytes: {e_mime}. Defaulting to application/octet-stream.")
-                    mimetype = 'application/octet-stream' # Fallback if cannot determine type
+                    img_io = io.BytesIO(bytes_for_pillow)
+                    img = Image.open(img_io)
+                    img_format_upper = img.format.upper() if img.format else "UNKNOWN"
+                    
+                    print(f"DIRECT IMAGE (Pillow): Opened image. Original format (Pillow's view): {img_format_upper}, Mode: {img.mode}, Size: {img.size}")
+
+                    if img_format_upper in ["JPEG", "PNG", "GIF", "WEBP"]:
+                        image_to_serve_bytes = bytes_for_pillow # Serve original bytes
+                        mimetype = Image.MIME.get(img_format_upper) or f'image/{img_format_upper.lower()}'
+                        print(f"DIRECT IMAGE: Serving original {img_format_upper} image.")
+                    else:
+                        print(f"DIRECT IMAGE: Original format {img_format_upper} not a standard web format or unknown. Converting to PNG.")
+                        output_io = io.BytesIO()
+                        # Handle potential mode issues before saving as PNG
+                        if img.mode == 'P' and 'transparency' in img.info: img = img.convert("RGBA")
+                        elif img.mode == 'CMYK': img = img.convert("RGB") # PNGs are better off as RGB/RGBA
+                        elif img.mode == 'P': img = img.convert("RGB") # Convert P without transparency to RGB
+                        
+                        img.save(output_io, format="PNG")
+                        image_to_serve_bytes = output_io.getvalue()
+                        mimetype = 'image/png'
+                        print(f"DIRECT IMAGE: Converted to PNG ({len(image_to_serve_bytes)} bytes).")
+                        
+                except UnidentifiedImageError:
+                    print(f"DIRECT IMAGE ERROR (Pillow): Pillow UnidentifiedImageError for {doc_type}/{nomor_input_str}. Cannot serve as image.")
+                    snippet = bytes_for_pillow[:80] if bytes_for_pillow else b''
+                    print(f"DIRECT IMAGE ERROR (Pillow): Data snippet (first 80 bytes): {snippet!r}")
+                    return "Error: Document is not a recognized image format (by Pillow) or is corrupted.", 415 # Unsupported Media Type
+                except Exception as e_img:
+                    print(f"DIRECT IMAGE ERROR (Pillow): Error processing non-PDF image {doc_type}/{nomor_input_str} with Pillow: {type(e_img).__name__}: {e_img}")
+                    return "Error processing image with Pillow.", 500
 
             if image_to_serve_bytes:
                 return Response(image_to_serve_bytes, mimetype=mimetype)
             else:
-                return "Error processing stored document for display.", 500
+                print(f"DIRECT IMAGE ERROR: image_to_serve_bytes is None for {doc_type}/{nomor_input_str} after all processing attempts. This is unexpected.")
+                return "Error: Unable to prepare image for display.", 500
         else:
-            return "Document not found", 404
+            return "Document not found or no image data in database", 404
     except Exception as e:
-        print(f"DIRECT IMAGE ERROR for {doc_type}/{nomor_input_str}: {e}")
-        return "Error fetching document from database", 500
+        print(f"DIRECT IMAGE ROUTE UNEXPECTED ERROR for {doc_type}/{nomor_input_str}: {type(e).__name__}: {e}")
+        return "Error fetching/processing document from database", 500
     finally:
         if cursor: cursor.close()
         if conn: conn.close()
 
+
 if __name__ == '__main__':
-    # Check if static folder and magnifying glass image exist (optional)
     static_folder = os.path.join(app.root_path, 'static')
     magnifying_glass_path = os.path.join(static_folder, 'magnifying-glass.png')
     if not os.path.exists(magnifying_glass_path):
